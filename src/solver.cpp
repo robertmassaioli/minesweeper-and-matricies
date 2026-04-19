@@ -3,7 +3,10 @@
 #include "matrix.h"
 
 #include "logging.h"
+#include <cmath>
 #include <map>
+
+static const double EPSILON = 1e-9;
 
 using namespace std;
 
@@ -227,7 +230,7 @@ list<Move>* solver::getMoves(Board* board, logger* log)
          double currentValue = solMat.getValue(row, col);
 
          // Update the pivot if need be.
-         if(pivotVal == 0.0 && currentValue != 0.0) 
+         if(fabs(pivotVal) < EPSILON && fabs(currentValue) > EPSILON)
          {
             pivot = col;
             pivotVal = currentValue;
@@ -235,7 +238,7 @@ list<Move>* solver::getMoves(Board* board, logger* log)
          }
 
          // Swap variables over to the other side.
-         if(currentValue != 0.0)
+         if(fabs(currentValue) > EPSILON)
          {
             if(results[col].isPresent())
             {
@@ -251,9 +254,9 @@ list<Move>* solver::getMoves(Board* board, logger* log)
       (*log) << "value: " << val << " (" << (failedToFindValue ? "true" : "false") << ")" << logger::endl;
       solMat.setValue(row, maxVariableColumn, val);
 
-      if(pivotVal != 0.0)
+      if(fabs(pivotVal) > EPSILON)
       {
-         if(failedToFindValue) 
+         if(failedToFindValue)
          {
             (*log) << "==" << logger::endl;
             // Otherwise Calculate min and max values for lemmas
@@ -263,45 +266,45 @@ list<Move>* solver::getMoves(Board* board, logger* log)
             for(matrix<double>::width_size_type col = row; col < maxVariableColumn; ++col)
             {
                double currentValue = solMat.getValue(row, col);
-               if(currentValue > 0.0) maxValue += currentValue;
-               if(currentValue < 0.0) minValue += currentValue; // plus a negative
+               if(currentValue > EPSILON) maxValue += currentValue;
+               if(currentValue < -EPSILON) minValue += currentValue; // plus a negative
             }
 
-            if(val == minValue)
+            if(fabs(val - minValue) < EPSILON)
             {
                // every non zero item is actually zero
                for(matrix<double>::width_size_type col = row; col < maxVariableColumn; ++col)
                {
                   double currentValue = solMat.getValue(row, col);
-                  if(currentValue > 0.0)
+                  if(currentValue > EPSILON)
                   {
                      (*log) << "Col " << col << " is not a mine." << logger::endl;
                      results[col] = optional<bool>(false);
                   }
-                  if(currentValue < 0.0)
+                  if(currentValue < -EPSILON)
                   {
                      results[col] = optional<bool>(true);
                   }
                }
-            } 
-            else if (val == maxValue)
+            }
+            else if (fabs(val - maxValue) < EPSILON)
             {
                // every non zero item is actually zero
                for(matrix<double>::width_size_type col = row; col < maxVariableColumn; ++col)
                {
                   double currentValue = solMat.getValue(row, col);
-                  if(currentValue > 0.0)
+                  if(currentValue > EPSILON)
                   {
                      (*log) << "Col " << col << " is a mine." << logger::endl;
                      results[col] = optional<bool>(true);
                   }
-                  if(currentValue < 0.0)
+                  if(currentValue < -EPSILON)
                   {
                      results[col] = optional<bool>(false);
                   }
                }
             }
-            // Apply elmmas to see if you can work it out using min and max properties.
+            // Apply lemmas to see if you can work it out using min and max properties.
          }
          else
          {
@@ -309,13 +312,13 @@ list<Move>* solver::getMoves(Board* board, logger* log)
             if(results[pivot].isPresent())
             {
                (*log) << "Already found pivot for: " << pivot << logger::endl;
-            } 
-            else 
+            }
+            else
             {
                (*log) << "Found standard result: " << pivot << " => " << val << logger::endl;
-               if(val == 0.0 || val == 1.0)
+               if(fabs(val) < EPSILON || fabs(val - 1.0) < EPSILON)
                {
-                  results[pivot] = optional<bool>(val == 1.0);
+                  results[pivot] = optional<bool>(fabs(val - 1.0) < EPSILON);
                }
                else
                {

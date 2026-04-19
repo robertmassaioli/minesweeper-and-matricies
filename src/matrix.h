@@ -194,7 +194,7 @@ class matrix
                }
             }
             
-            if (getValue(max_row, col) != A(0.0))
+            if (abs(getValue(max_row, col)) > A(1e-9))
             {
                // Swap the rows around. Put it in its own scope to remove the temp
                // variable asap.
@@ -213,7 +213,7 @@ class matrix
                for(int iterRow = row + 1; iterRow < totalRows; ++iterRow)
                {
                   A mulVal = -getValue(iterRow, col);
-                  if(mulVal != A(0.0))
+                  if(abs(mulVal) > A(1e-9))
                   {
                      rows[row]->multiply(mulVal);
                      rows[iterRow]->add(rows[row]);
@@ -255,7 +255,7 @@ class matrix
          {
             for (int col = 0; col < matrixWidth && shouldDeleteRow; ++col) 
             {
-               if (getValue(row, col) != 0) {
+               if (abs(getValue(row, col)) > A(1e-9)) {
                   shouldDeleteRow = false;
                   if (col == matrixWidth - 1) {
                      *result = NO_SOLUTIONS;
