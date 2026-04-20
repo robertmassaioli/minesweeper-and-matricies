@@ -120,6 +120,19 @@ class Vector
          }
       }
 
+      // Fused multiply-add: this[i] += scale * other[i].
+      // Replaces the multiply/add/multiply-back pattern in gaussianEliminate with a
+      // single pass, reducing work from 3 × N floating-point ops to 1 × N.
+      void scaleAdd(T scale, const Vector<T>* other)
+      {
+         const size_type vectorLength = values.size();
+         assert(vectorLength == other->values.size());
+         for(size_type i = 0; i < vectorLength; ++i)
+         {
+            values[i] += scale * other->values[i];
+         }
+      }
+
       double length()
       {
          const size_type vectorLength = values.size();

@@ -204,15 +204,14 @@ class matrix
                // those below. This ensures that deductions derivable by subtracting one
                // constraint from another are made automatically rather than requiring a
                // separate post-processing pass.
+               // scaleAdd fuses the multiply/add/divide-back into one pass over the row.
                for(int iterRow = 0; iterRow < totalRows; ++iterRow)
                {
                   if(iterRow == row) continue;
                   A mulVal = -getValue(iterRow, col);
                   if(abs(mulVal) > A(1e-9))
                   {
-                     rows[row]->multiply(mulVal);
-                     rows[iterRow]->add(rows[row].get());
-                     rows[row]->multiply(A(1.0) / mulVal);
+                     rows[iterRow]->scaleAdd(mulVal, rows[row].get());
                   }
                }
 
