@@ -2,6 +2,21 @@
 
 Ten concrete improvements across different functional areas, ranked roughly from highest to lowest impact.
 
+**Status:** ✅ = implemented
+
+| # | Title | Status |
+|---|-------|--------|
+| 1 | Probabilistic Guessing When Stuck | |
+| 2 | Switch Gaussian Elimination to Full RREF | |
+| 3 | Replace Raw Pointers with Smart Pointers | |
+| 4 | Game and Solver Integration Tests | |
+| 5 | Avoid Re-solving the Entire Board Each Turn | |
+| 6 | Fix the Floating-Point Equality Comparisons | ✅ |
+| 7 | Replace Hand-Rolled `optional<T>` with `std::optional` | |
+| 8 | Seed Control and Deterministic Replays | |
+| 9 | Modernise CMake and Fix Warnings | |
+| 10 | Inline Code Comments for Non-Obvious Logic | |
+
 ---
 
 ## 1. Solver Correctness — Probabilistic Guessing When Stuck
@@ -12,15 +27,15 @@ Currently when the solver runs out of deterministic moves it stops and records a
 
 ---
 
-## 2. Solver Correctness — Coupled Constraint Reasoning
+## 2. Solver Correctness — Switch Gaussian Elimination to Full RREF
 
 **Area:** Correctness / Win Rate
 
-The solver already applies a min/max lemma to individual rows after Gaussian elimination. The lemma works by checking whether the RHS of a row equals the minimum or maximum possible value for the sum of its unknowns. A row like `a + b + c = 3` hits the maximum, so all three variables must be mines. A row like `a + b + c = 0` hits the minimum, so all three are safe.
+The solver applies Gaussian elimination before reading off results. Gaussian elimination DOES subtract rows from each other — but the inner loop in `gaussianEliminate()` (line 213 of `matrix.h`) iterates only from `row + 1` to `totalRows`, meaning it only eliminates the pivot variable from rows **below** the pivot row. Rows **above** are left untouched. The result is an upper-triangular matrix, not a fully Reduced Row Echelon Form (RREF).
 
-However, a row like `a + b + c = 2` has `min=0`, `max=3`, `val=2` — neither extreme is reached, so the lemma fires nothing and the solver silently gives up on that row. This is a genuinely underdetermined constraint: two of the three squares are mines but Gaussian elimination on that row alone cannot determine which two. This scenario is the primary driver of the 57% stall rate, as many mid-game board states produce constraints of this form.
+This matters because the deductions that are missed require eliminating **upward**. For example: if a lower row has pivot `b` and establishes `b + c = 1`, the upper row `a + b + c = 2` still contains `b`. Subtracting the lower row from the upper gives `a = 1` (mine) — but because elimination only goes downward, this never happens and both rows remain unresolved.
 
-The fix is to combine pairs of rows to derive new constraints. If row A says `x + y + z = 2` and row B says `x + y = 1`, subtracting gives `z = 1` (mine) — something neither row reveals alone. Adding a constraint-propagation pass that subtracts compatible row pairs after elimination would resolve more squares without any guessing, improving the win rate at zero cost in correctness.
+The fix is small and surgical: change the inner elimination loop from `row + 1` to `0` (skipping `iterRow == row`) so that each pivot variable is zeroed out in **all** other rows, not just those below. This is the standard definition of full RREF and would make the solver automatically extract deductions that currently require a separate post-processing pass. The solver's existing back-substitution and min/max lemma logic would then operate on a more fully reduced matrix and resolve significantly more squares per turn.
 
 ---
 
