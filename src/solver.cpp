@@ -6,6 +6,7 @@
 #include <cmath>
 #include <unordered_map>
 #include <optional>
+#include <vector>
 
 static const double EPSILON = 1e-9;
 
@@ -22,13 +23,13 @@ static int adjMap[8][2] = {
    {-1,0}
 };
 
-std::unique_ptr<std::list<Move>> solver::getMoves(Board* board, logger* log)
+std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
 {
    Square* grid = board->getGrid();
 
    // 1 List number squares that touch non-clicked squares
    Dimensions gridDim = board->getDimensions();
-   list<Position> nonCompletedPositions;
+   std::vector<Position> nonCompletedPositions;
    for(int row = 0; row < gridDim.getHeight(); ++row)
    {
       for(int col = 0; col < gridDim.getWidth(); ++col)
@@ -66,14 +67,11 @@ std::unique_ptr<std::list<Move>> solver::getMoves(Board* board, logger* log)
    int currentSquareId = 0;
    unordered_map<int, int> idToPosition;
    unordered_map<int, int> positionToId;
-   for(
-         list<Position>::const_iterator it = nonCompletedPositions.begin();
-         it != nonCompletedPositions.end();
-         ++it)
+   for(const Position& pos : nonCompletedPositions)
    {
       for(int i = 0; i < 8; ++i)
       {
-         Position tempPos(it->getX() + adjMap[i][0], it->getY() + adjMap[i][1]);
+         Position tempPos(pos.getX() + adjMap[i][0], pos.getY() + adjMap[i][1]);
          if(board->isValidPos(tempPos)) 
          {
             int position = board->locPos(tempPos);
@@ -94,7 +92,7 @@ std::unique_ptr<std::list<Move>> solver::getMoves(Board* board, logger* log)
    (*log) << "Non flagged positions: " << nonCompletedPositions.size() << logger::endl;
    (*log) << "Total Squares: " << currentSquareId << logger::endl;
 
-   if(nonCompletedPositions.size() == 0 || currentSquareId == 0)
+   if(nonCompletedPositions.empty() || currentSquareId == 0)
    {
       return nullptr;
    }
@@ -118,18 +116,15 @@ std::unique_ptr<std::list<Move>> solver::getMoves(Board* board, logger* log)
    matrix<double> solMat;
    Vector<double> tempRow;
    tempRow.setDimension(totalSquares + 1);
-   for(
-         list<Position>::const_iterator it = nonCompletedPositions.begin();
-         it != nonCompletedPositions.end();
-         ++it)
+   for(const Position& pos : nonCompletedPositions)
    {
-      int position = board->locPos(it->getX(), it->getY());
+      int position = board->locPos(pos.getX(), pos.getY());
 
       tempRow.reset(0.0);
       tempRow.setValue(totalSquares, grid[position].value);
       for(int i = 0; i < 8; ++i)
       {
-         Position adjacent(it->getX() + adjMap[i][0], it->getY() + adjMap[i][1]);
+         Position adjacent(pos.getX() + adjMap[i][0], pos.getY() + adjMap[i][1]);
          if(board->isValidPos(adjacent))
          {
             int adjacentPosition = board->locPos(adjacent);
@@ -319,7 +314,7 @@ std::unique_ptr<std::list<Move>> solver::getMoves(Board* board, logger* log)
    }
 
    // print out results
-   auto moves = std::make_unique<std::list<Move>>();
+   auto moves = std::make_unique<std::vector<Move>>();
    for(matrix<double>::width_size_type i = 0; i < matrixWidth - 1; ++i)
    {
       (*log) << i << ": ";

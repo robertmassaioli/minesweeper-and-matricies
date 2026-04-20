@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <memory>
+#include <vector>
 
 #include "game.h"
 #include "solver.h"
@@ -38,7 +39,7 @@ class results
       }
 
       int winCount, loseCount, progressCount, total;
-      list<unsigned int> losses;
+      vector<unsigned int> losses;
 };
 
 static void printResults(logger* log, results& res);
@@ -119,20 +120,16 @@ static GameState solveRandomGame(Dimensions& dim, int mineCount, logger* log)
    game.print();
 
    // Now get the AI to work out the rest
-   std::unique_ptr<std::list<Move>> movesToPerform;
+   std::unique_ptr<std::vector<Move>> movesToPerform;
    do
    {
       movesToPerform = turnSolver.getMoves(game.getBoard(), log);
 
       if(movesToPerform)
       {
-         for(
-               list<Move>::const_iterator it = movesToPerform->begin();
-               it != movesToPerform->end();
-               ++it
-            )
+         for(const Move& m : *movesToPerform)
          {
-            Move currentMove = *it;
+            Move currentMove = m;
             game.acceptMove(currentMove);
          }
       }
@@ -157,13 +154,9 @@ static void printResults(logger* log, results& res)
    {
       // Print out losses
       (*log) << "Seeds for losses: " << logger::endl;
-      for(
-            list<unsigned int>::const_iterator it = res.losses.begin();
-            it != res.losses.end();
-            ++it
-         )
+      for(unsigned int seed : res.losses)
       {
-         (*log) << " " << *it << logger::endl;
+         (*log) << " " << seed << logger::endl;
       }
    }
 }
