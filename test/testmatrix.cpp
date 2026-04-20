@@ -327,22 +327,21 @@ static bool testsolveMatrix (void) {
 	r->setValue(0, 2); r->setValue(1, -3); r->setValue(2, 1);
 	
    matrix<double>::solution solve_result;
-	Vector<double> *res = m->solve(&solve_result);
+   auto res = m->solve(&solve_result);
    bool result = true;
-   if(res != NULL) 
+   if(res != nullptr)
    {
       res->round();
-	
-      result &= r->equal(res);
+
+      result &= r->equal(res.get());
       result &= (solve_result == matrix<double>::UNIQUE_SOLUTION);
-   } 
+   }
    else
    {
       result = false;
    }
-	
+
    delete r;
-   delete res;
    delete m;
 	
 	return result;

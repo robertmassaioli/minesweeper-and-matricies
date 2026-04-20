@@ -3,6 +3,7 @@
 
 #include "logging.h"
 #include <cstdlib>
+#include <memory>
 
 // In every board game square there should be a mine and they can be EMPTY, 1-8 or a MINE.
 #define NA -1
@@ -117,7 +118,7 @@ class Board
       int openEmptySquares(Position& position);
       GameState expandSquares(Position& position);
 
-      Square* grid; 
+      std::unique_ptr<Square[]> grid;
 
       Dimensions dim;
       int mines, squaresLeft;

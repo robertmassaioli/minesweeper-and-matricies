@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <cassert>
 #include <algorithm>
+#include <random>
 #include <vector>
 
 #include "game.h"
@@ -59,17 +60,12 @@ Board* Game::getBoard()
 Board::Board(Dimensions dim, int mineCount, logger* log)
    : dim(dim), log(log)
 {
-   grid = NULL;
    generated = false;
    mines = mineCount;
 }
 
 Board::~Board()
 {
-   if(grid != NULL)
-   {
-      delete[] grid;
-   }
 }
 
 void Board::print()
@@ -256,8 +252,7 @@ Dimensions Board::getDimensions() const
 
 Square* Board::getGrid()
 {
-   // TODO is this function even required
-   return grid;
+   return grid.get();
 }
 
 Position Board::posLoc(int position) const
@@ -342,10 +337,10 @@ void Board::generateGrid(Move& move)
    vector<Position> squarePositions(totalSquares);
    IncGenerator gen(dim);
    generate(squarePositions.begin(), squarePositions.end(), gen);
-   random_shuffle(squarePositions.begin(), squarePositions.end());
+   std::shuffle(squarePositions.begin(), squarePositions.end(), std::mt19937{std::random_device{}()});
 
    // Generate the board
-   grid = new Square[totalSquares];
+   grid = std::make_unique<Square[]>(totalSquares);
    for(int i = 0; i < totalSquares; ++i)
    {
       grid[i].state = NOT_CLICKED;

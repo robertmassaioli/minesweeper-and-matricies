@@ -2,11 +2,12 @@
 #define __ROBERTM_MINESWEEPER_SOLVER
 
 #include <list>
+#include <memory>
 
 class solver
 {
    public:
-      std::list<Move>* getMoves(Board* board, logger* log);
+      std::unique_ptr<std::list<Move>> getMoves(Board* board, logger* log);
 };
 
 #endif

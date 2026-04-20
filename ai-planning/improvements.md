@@ -8,11 +8,11 @@ Ten concrete improvements across different functional areas, ranked roughly from
 |---|-------|--------|
 | 1 | Probabilistic Guessing When Stuck | |
 | 2 | Switch Gaussian Elimination to Full RREF | ✅ |
-| 3 | Replace Raw Pointers with Smart Pointers | |
+| 3 | Replace Raw Pointers with Smart Pointers | ✅ |
 | 4 | Game and Solver Integration Tests | |
 | 5 | Avoid Re-solving the Entire Board Each Turn | |
 | 6 | Fix the Floating-Point Equality Comparisons | ✅ |
-| 7 | Replace Hand-Rolled `optional<T>` with `std::optional` | |
+| 7 | Replace Hand-Rolled `optional<T>` with `std::optional` | ✅ |
 | 8 | Seed Control and Deterministic Replays | |
 | 9 | Modernise CMake and Fix Warnings | |
 | 10 | Inline Code Comments for Non-Obvious Logic | |

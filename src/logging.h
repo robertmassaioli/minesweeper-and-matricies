@@ -11,6 +11,8 @@ class logger
          endl
       };
 
+     virtual ~logger() = default;
+
      virtual logger& operator<<(const char* c) = 0; 
      virtual logger& operator<<(std::string str) = 0; 
      virtual logger& operator<<(bool b) = 0; 

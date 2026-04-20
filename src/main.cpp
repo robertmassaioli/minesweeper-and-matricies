@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cstdlib>
+#include <memory>
 
 #include "game.h"
 #include "solver.h"
@@ -46,15 +47,15 @@ static GameState solveRandomGame(Dimensions& dim, int mineCount, logger* log);
 int main(int argc, char** argv)
 {
    // Create the logger
-   logger* log = NULL;
+   std::unique_ptr<logger> log;
    if(argc == 2)
    {
       fstream out_file(argv[1], fstream::out);
-      log = new ostream_logger(out_file);
+      log = std::make_unique<ostream_logger>(out_file);
    }
    else
    {
-      log = new nop_logger;
+      log = std::make_unique<nop_logger>();
    }
 
    /*
@@ -83,7 +84,7 @@ int main(int argc, char** argv)
       (*log) << "Random Seed: " << randomSeed << logger::endl << logger::endl;
 
       // Solve a game and count the result
-      GameState result = solveRandomGame(dim, mines, log);
+      GameState result = solveRandomGame(dim, mines, log.get());
       res.count(result, randomSeed);
 
       if(i % 500 == 0)
@@ -94,13 +95,11 @@ int main(int argc, char** argv)
    cout << "Processed " << testRuns << std::endl;
 
    {
-      logger* tempLogger = new ostream_logger(std::cout);
-      printResults(tempLogger, res);
-      delete tempLogger;
+      auto tempLogger = std::make_unique<ostream_logger>(std::cout);
+      printResults(tempLogger.get(), res);
    }
-   printResults(log, res);
+   printResults(log.get(), res);
 
-   delete log;
    return EXIT_SUCCESS;
 }
 
@@ -120,18 +119,12 @@ static GameState solveRandomGame(Dimensions& dim, int mineCount, logger* log)
    game.print();
 
    // Now get the AI to work out the rest
-   list<Move>* movesToPerform = NULL;
+   std::unique_ptr<std::list<Move>> movesToPerform;
    do
    {
-      if(movesToPerform != NULL)
-      {
-         delete movesToPerform;
-         movesToPerform = NULL;
-      }
-
       movesToPerform = turnSolver.getMoves(game.getBoard(), log);
 
-      if(movesToPerform != NULL)
+      if(movesToPerform)
       {
          for(
                list<Move>::const_iterator it = movesToPerform->begin();
@@ -144,14 +137,7 @@ static GameState solveRandomGame(Dimensions& dim, int mineCount, logger* log)
          }
       }
       game.print();
-   } while (game.getState() == PROGRESS && movesToPerform != NULL && !movesToPerform->empty());
-
-   // Clear the final moves
-   if(movesToPerform != NULL)
-   {
-      delete movesToPerform;
-      movesToPerform = NULL;
-   }
+   } while (game.getState() == PROGRESS && movesToPerform && !movesToPerform->empty());
 
    (*log) << logger::endl;
    game.print();

@@ -8,6 +8,7 @@
 
 #include "logging.h"
 #include "vector.h"
+#include <memory>
 
 template<class A>
 class matrix
@@ -68,16 +69,16 @@ class matrix
       {
          assert(row != NULL);
 
-         Vector<A>* newRow = new Vector<A>;
+         auto newRow = std::make_unique<Vector<A>>();
          newRow->copy(row);
 
-         rows.push_back(newRow);
+         rows.push_back(std::move(newRow));
       }
 
       Vector<A>* getRow(height_size_type rowIndex) const
       {
-         if(rowIndex >= rows.size()) return NULL;
-         return rows[rowIndex];
+         if(rowIndex >= rows.size()) return nullptr;
+         return rows[rowIndex].get();
       }
 
       /**
@@ -85,22 +86,19 @@ class matrix
        */
       void deleteRow(int rowIndex)
       {
-         delete rows[rowIndex];
          rows.erase(rows.begin() + rowIndex);
       }
 
       void addColumn(Vector<A>* vector)
       {
          assert (vector != NULL);
-         
+
          if (rows.empty()) {
-            rows.resize(vector->getDimension());
-            
-            height_size_type newHeight = getHeight();
+            height_size_type newHeight = vector->getDimension();
+            rows.resize(newHeight);
             for (height_size_type i = 0; i < newHeight; i++) {
-               Vector<A>* newRow = new Vector<A>;
-               newRow->setValue(0, vector->getValue(i));
-               rows[i] = newRow;
+               rows[i] = std::make_unique<Vector<A>>();
+               rows[i]->setValue(0, vector->getValue(i));
             }
          } else {
             height_size_type matrixHeight = getHeight();
@@ -115,11 +113,7 @@ class matrix
 
       void clear()
       {
-         while(!rows.empty())
-         {
-            delete rows.back();
-            rows.pop_back();
-         }
+         rows.clear();
       }
 
       A getValue(height_size_type row, width_size_type col)
@@ -200,10 +194,7 @@ class matrix
                // variable asap.
                if(row != max_row)
                {
-                  Vector<A>* temp = rows[row]; 
-                  rows[row] = rows[max_row]; 
-                  rows[max_row] = temp;
-                  // (*log) << "Swapped rows " << row << " and " << max_row << logging::endl;
+                  std::swap(rows[row], rows[max_row]);
                }
 
                A currentValue = getValue(row, col);
@@ -217,7 +208,7 @@ class matrix
                   if(abs(mulVal) > A(1e-9))
                   {
                      rows[row]->multiply(mulVal);
-                     rows[iterRow]->add(rows[row]);
+                     rows[iterRow]->add(rows[row].get());
                      rows[row]->multiply(A(1.0) / mulVal);
                   }
                }
@@ -235,7 +226,7 @@ class matrix
        * FAIL return NULL and result is INFINITE_SOLUTIONS or NO_SOLUTIONS.
        * SUCCESS return Vector solution and result is UNIQUE_SOLUTION
        */
-      Vector<A>* solve(matrix::solution* result)
+      std::unique_ptr<Vector<A>> solve(matrix::solution* result)
       {
          int matrixHeight = getHeight();
          int matrixWidth = getWidth();
@@ -271,11 +262,11 @@ class matrix
                
          // for every row
          //		if every item in that row is zero then delete the row (and if any row only has the last row with an item then NO_SOLUTIONS)
-         Vector<A>* solution = NULL;
+         std::unique_ptr<Vector<A>> solution;
          matrixHeight = getHeight(); // the height may have changed from above
          if (matrixHeight == matrixWidth - 1) {
             int maxVar = matrixWidth - 1;
-            solution = new Vector<A>;
+            solution = std::make_unique<Vector<A>>();
             solution->setDimension(maxVar);
          
             for (int row = maxVar - 1; row >= 0; --row) 
@@ -296,9 +287,9 @@ class matrix
          return solution;
       }
 
-      matrix<A>* multiply(matrix<A>* other)
+      std::unique_ptr<matrix<A>> multiply(matrix<A>* other)
       {
-         matrix<A>* result = new matrix<A>;
+         auto result = std::make_unique<matrix<A>>();
 
          other->transpose();
          
@@ -359,7 +350,7 @@ class matrix
       }
 
    private:
-      std::vector<Vector<A>*> rows;
+      std::vector<std::unique_ptr<Vector<A>>> rows;
 
       A abs(A x)
       {

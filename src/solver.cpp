@@ -5,15 +5,12 @@
 #include "logging.h"
 #include <cmath>
 #include <map>
+#include <optional>
 
 static const double EPSILON = 1e-9;
 
 using namespace std;
 
-/**
- * TODO change this to be a function that is provided from Position.
- * This map contains all of the potential relative positions.
- */
 static int adjMap[8][2] = {
    {-1,-1},
    {0,-1},
@@ -25,37 +22,7 @@ static int adjMap[8][2] = {
    {-1,0}
 };
 
-template<class A>
-class optional
-{
-   private:
-      A value;
-      bool present;
-
-   public:
-      optional(A value)
-         : value(value)
-      {
-         present = true;
-      }
-
-      optional()
-      {
-         present = false;
-      }
-
-      bool isPresent()
-      {
-         return present;
-      }
-
-      A get()
-      {
-         return value;
-      }
-};
-
-list<Move>* solver::getMoves(Board* board, logger* log)
+std::unique_ptr<std::list<Move>> solver::getMoves(Board* board, logger* log)
 {
    Square* grid = board->getGrid();
 
@@ -129,8 +96,7 @@ list<Move>* solver::getMoves(Board* board, logger* log)
 
    if(nonCompletedPositions.size() == 0 || currentSquareId == 0)
    {
-      // There cannot be any solution.
-      return NULL;
+      return nullptr;
    }
 
    // print out every element int the maps
@@ -211,7 +177,7 @@ list<Move>* solver::getMoves(Board* board, logger* log)
       }
    }
 
-   vector<optional<bool> > results;
+   vector<std::optional<bool>> results;
    results.resize(matrixWidth - 1);
 
    matrix<double>::width_size_type maxVariableColumn = matrixWidth - 1;
@@ -240,9 +206,9 @@ list<Move>* solver::getMoves(Board* board, logger* log)
          // Swap variables over to the other side.
          if(fabs(currentValue) > EPSILON)
          {
-            if(results[col].isPresent())
+            if(results[col].has_value())
             {
-               val -= currentValue * (results[col].get() ? 1.0 : 0.0);
+               val -= currentValue * (results[col].value() ? 1.0 : 0.0);
                solMat.setValue(row, col, 0.0);
             } 
             else
@@ -279,11 +245,11 @@ list<Move>* solver::getMoves(Board* board, logger* log)
                   if(currentValue > EPSILON)
                   {
                      (*log) << "Col " << col << " is not a mine." << logger::endl;
-                     results[col] = optional<bool>(false);
+                     results[col] = std::optional<bool>(false);
                   }
                   if(currentValue < -EPSILON)
                   {
-                     results[col] = optional<bool>(true);
+                     results[col] = std::optional<bool>(true);
                   }
                }
             }
@@ -296,11 +262,11 @@ list<Move>* solver::getMoves(Board* board, logger* log)
                   if(currentValue > EPSILON)
                   {
                      (*log) << "Col " << col << " is a mine." << logger::endl;
-                     results[col] = optional<bool>(true);
+                     results[col] = std::optional<bool>(true);
                   }
                   if(currentValue < -EPSILON)
                   {
-                     results[col] = optional<bool>(false);
+                     results[col] = std::optional<bool>(false);
                   }
                }
             }
@@ -309,7 +275,7 @@ list<Move>* solver::getMoves(Board* board, logger* log)
          else
          {
             // If there is only the pivot left the row can be solved with normal methods
-            if(results[pivot].isPresent())
+            if(results[pivot].has_value())
             {
                (*log) << "Already found pivot for: " << pivot << logger::endl;
             }
@@ -334,13 +300,13 @@ list<Move>* solver::getMoves(Board* board, logger* log)
    }
 
    // print out results
-   list<Move>* moves = new list<Move>;
+   auto moves = std::make_unique<std::list<Move>>();
    for(matrix<double>::width_size_type i = 0; i < matrixWidth - 1; ++i)
    {
       (*log) << i << ": ";
-      if(results[i].isPresent())
+      if(results[i].has_value())
       {
-         if(results[i].get())
+         if(results[i].value())
          {
             (*log) << "mine";
             moves->push_back(Move(board->posLoc(idToPosition[(int) i]), FLAG));
