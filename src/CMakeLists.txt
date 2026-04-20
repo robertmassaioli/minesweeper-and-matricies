@@ -14,5 +14,4 @@ add_executable( mnm main.cpp )
 target_link_libraries( mnm
    game
    game-solver
-   stdc++
    )

@@ -96,11 +96,11 @@ void Board::print()
                }
                break;
 
-            case FLAG:
+            case FLAG_CLICKED:
                (*log) << "F";
                break;
-               
-            case QUESTION:
+
+            case QUESTION_CLICKED:
                (*log) << "?";
                break;
 
