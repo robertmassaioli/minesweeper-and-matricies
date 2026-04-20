@@ -10,7 +10,7 @@ target_link_libraries( game-solver
    )
 
 # The actual game-solver itself
-add_executable( mnm main.cpp )
+add_executable( mnm main.cpp cli.cpp )
 target_link_libraries( mnm
    game
    game-solver

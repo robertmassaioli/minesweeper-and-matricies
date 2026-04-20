@@ -337,9 +337,9 @@ void Board::generateGrid(Move& move)
    vector<Position> squarePositions(totalSquares);
    IncGenerator gen(dim);
    generate(squarePositions.begin(), squarePositions.end(), gen);
-   // One engine for all boards: random_device is a system call on most platforms;
-   // constructing it 100,000 times is measurably expensive.
-   static std::mt19937 rng{std::random_device{}()};
+   // Seed from rand() so the shuffle is controlled by the same srand() seed as
+   // the rest of the program, making --seed reproduce identical runs.
+   std::mt19937 rng{static_cast<unsigned>(rand())};
    std::shuffle(squarePositions.begin(), squarePositions.end(), rng);
 
    // Generate the board

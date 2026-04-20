@@ -2,11 +2,12 @@
 #include <cstdlib>
 #include <memory>
 #include <vector>
+#include <fstream>
 
 #include "game.h"
 #include "solver.h"
 #include "logging.h"
-#include <fstream>
+#include "cli.h"
 
 using namespace std;
 
@@ -47,32 +48,27 @@ static GameState solveRandomGame(Dimensions& dim, int mineCount, logger* log);
 
 int main(int argc, char** argv)
 {
+   Config cfg = parseArgs(argc, argv);
+
    // Create the logger
    std::unique_ptr<logger> log;
-   if(argc == 2)
+   std::unique_ptr<std::fstream> logStream;
+   if (!cfg.logFile.empty())
    {
-      fstream out_file(argv[1], fstream::out);
-      log = std::make_unique<ostream_logger>(out_file);
+      logStream = std::make_unique<std::fstream>(cfg.logFile, std::fstream::out);
+      log = std::make_unique<ostream_logger>(*logStream);
    }
    else
    {
       log = std::make_unique<nop_logger>();
    }
 
-   /*
-    * The windows version of minesweeper has the following difficulties.
-         Beginner: 8 × 8 or 9 × 9 field with 10 mines
-         Intermediate: 16 × 16 field with 40 mines
-         Expert: 30 × 16 field with 99 mines
-   */
-
-   // Create the game
-   Dimensions dim(16, 16);
-   const int mines = 40;
-   const int testRuns = 100000;
+   Dimensions dim(cfg.width, cfg.height);
+   const int mines     = cfg.mines;
+   const int testRuns  = cfg.runs;
 
    // Init the random numbers
-   unsigned int initialRandom = unsigned( time(NULL) );
+   unsigned int initialRandom = cfg.fixedSeed ? cfg.seed : unsigned(time(NULL));
    srand(initialRandom);
    (*log) << "Initial Random: " << initialRandom << logger::endl;
 
