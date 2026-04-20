@@ -30,36 +30,73 @@ licensed under the MIT license.
 
 ## Compilation
 
-I took careful effort to make sure that this code had no external dependencies so that it
-would be possible to compile cross platform. All that you require to compile it is [CMake][2]. 
-You can compile it as follows:
+The only dependency is [CMake][2] (version 3.10 or newer) and a C++17-capable compiler.
 
     mkdir localbuild && cd localbuild
-    cmake ..
+    cmake -DCMAKE_BUILD_TYPE=Release ..
     make
 
-And then you should be able to run the program by typing in:
+## Running
+
+Run the solver with default settings (Intermediate difficulty, 100,000 games):
 
     ./src/mnm
 
-And that should run the solver. 
+### Options
+
+    Usage: mnm [options]
+
+    Options:
+      --width N         Board width  (default: 16)
+      --height N        Board height (default: 16)
+      --mines N         Number of mines (default: 40)
+      --runs N          Number of simulated games (default: 100000)
+      --preset NAME     Shorthand difficulty: beginner | intermediate | expert
+                        Sets width, height, and mines. Individual flags override.
+      --seed N          Fix the initial RNG seed for reproducible runs (default: time-based)
+      --log FILE        Write per-game trace to FILE
+      --help            Print this message and exit
+
+    Presets:
+      beginner      9 x 9,  10 mines
+      intermediate  16 x 16, 40 mines  (default)
+      expert        30 x 16, 99 mines
+
+### Examples
+
+Quick smoke-test on Beginner difficulty:
+
+    ./src/mnm --preset beginner --runs 1000
+
+Run Expert with a fixed seed so results are reproducible:
+
+    ./src/mnm --preset expert --seed 12345
+
+Custom board with a per-game trace written to a file:
+
+    ./src/mnm --width 9 --height 9 --mines 10 --runs 500 --log trace.txt
+
+## Running the Tests
+
+From the build directory:
+
+    ctest
+
+## Running the Benchmarks
+
+From the build directory:
+
+    ./bench/benchmarks
+
+This runs three benchmarks for 2 seconds each and reports mean microseconds per
+iteration and iterations per second: the full game pipeline, a single solver turn,
+and Gaussian elimination in isolation.
 
 ## Installation
 
 What, really? You actually want to install this code on your machine, well I'm chuffed.
 You can use the standard cmake tools to install it but, honestly, it will probably just
 clutter up your bin directory.
-
-### Code Caveats
-
-There are a few things that you should know about the code:
-
- - It is pretty messy. I wrote it quickly and it could be separated better. I will attempt
-   to make it nicer over time.
- - There are no dependencies and that has reduced nice modern C++ features: specifically
-   using RAII principles to manage pointers. I should have written my own smart pointer
-   class but I did not. Instead you will find delete's spread out over the code. Be happy
-   that I have attempted to use valgrind to weed out the memory leaks.
 
  [1]: http://robertmassaioli.wordpress.com/2013/01/12/solving-minesweeper-with-matricies/
  [2]: http://www.cmake.org/
