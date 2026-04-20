@@ -4,7 +4,6 @@
 
 #include "logging.h"
 #include <cmath>
-#include <unordered_map>
 #include <optional>
 #include <vector>
 
@@ -64,24 +63,26 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
    }
 
    // 2 Get all of the adjacent squares that have not been clicked and identify them.
+   // positionToId is a flat array indexed by board position (no hash overhead).
+   // -1 means "not yet assigned an id".
    int currentSquareId = 0;
-   unordered_map<int, int> idToPosition;
-   unordered_map<int, int> positionToId;
+   const int totalBoardSquares = gridDim.getWidth() * gridDim.getHeight();
+   std::vector<int> positionToId(totalBoardSquares, -1);
+   std::vector<int> idToPosition;
    for(const Position& pos : nonCompletedPositions)
    {
       for(int i = 0; i < 8; ++i)
       {
          Position tempPos(pos.getX() + adjMap[i][0], pos.getY() + adjMap[i][1]);
-         if(board->isValidPos(tempPos)) 
+         if(board->isValidPos(tempPos))
          {
             int position = board->locPos(tempPos);
             if(grid[position].state == NOT_CLICKED)
             {
-               unordered_map<int, int>::iterator found = positionToId.find(position);
-               if(found == positionToId.end())
+               if(positionToId[position] == -1)
                {
                   positionToId[position] = currentSquareId;
-                  idToPosition[currentSquareId] = position;
+                  idToPosition.push_back(position);
                   currentSquareId++;
                }
             }
@@ -97,15 +98,11 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
       return nullptr;
    }
 
-   // print out every element int the maps
+   // print out every element in the id map
    (*log) << "Id: Position" << logger::endl;
-   for(
-         unordered_map<int, int>::const_iterator iter = idToPosition.begin();
-         iter != idToPosition.end();
-         ++iter
-      )
+   for(int id = 0; id < currentSquareId; ++id)
    {
-      (*log) << iter->first << ": " << iter->second << logger::endl;
+      (*log) << id << ": " << idToPosition[id] << logger::endl;
    }
    (*log) << logger::endl;
 
