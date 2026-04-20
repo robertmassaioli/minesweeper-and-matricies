@@ -200,7 +200,10 @@ class matrix
                A currentValue = getValue(row, col);
                rows[row]->multiply(A(1.0) / currentValue);
 
-               // Eliminate this column from all other rows (full RREF, not just rows below).
+               // Full RREF: eliminate this pivot column from every other row, not just
+               // those below. This ensures that deductions derivable by subtracting one
+               // constraint from another are made automatically rather than requiring a
+               // separate post-processing pass.
                for(int iterRow = 0; iterRow < totalRows; ++iterRow)
                {
                   if(iterRow == row) continue;

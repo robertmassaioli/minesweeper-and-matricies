@@ -15,7 +15,7 @@ Ten concrete improvements across different functional areas, ranked roughly from
 | 7 | Replace Hand-Rolled `optional<T>` with `std::optional` | ✅ |
 | 8 | Seed Control and Deterministic Replays | |
 | 9 | Modernise CMake and Fix Warnings | ✅ |
-| 10 | Inline Code Comments for Non-Obvious Logic | |
+| 10 | Inline Code Comments for Non-Obvious Logic | ✅ |
 
 ---
 

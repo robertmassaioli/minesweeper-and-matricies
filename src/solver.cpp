@@ -111,8 +111,9 @@ std::unique_ptr<std::list<Move>> solver::getMoves(Board* board, logger* log)
    }
    (*log) << logger::endl;
 
-   // 3 Create a matrix based on the numbers that we have discovered. Base it off the
-   // nonFlagged squares.
+   // 3 Build the constraint matrix.
+   // Each revealed number square contributes one row: sum(unknown_neighbours) = number - flagged_neighbours.
+   // Columns correspond to unknown squares (variables); the final column is the RHS constant.
    int totalSquares = currentSquareId;
    matrix<double> solMat;
    Vector<double> tempRow;
@@ -132,13 +133,15 @@ std::unique_ptr<std::list<Move>> solver::getMoves(Board* board, logger* log)
          if(board->isValidPos(adjacent))
          {
             int adjacentPosition = board->locPos(adjacent);
-            if(grid[adjacentPosition].state == NOT_CLICKED) 
+            if(grid[adjacentPosition].state == NOT_CLICKED)
             {
                int matrixColumn = positionToId[adjacentPosition];
                tempRow.setValue(matrixColumn, 1.0);
-            } 
-            else if (grid[adjacentPosition].state == FLAG_CLICKED) 
+            }
+            else if (grid[adjacentPosition].state == FLAG_CLICKED)
             {
+               // Already-flagged neighbours are confirmed mines: subtract them from the
+               // RHS so the equation counts only the remaining unknown neighbours.
                tempRow.setValue(totalSquares, tempRow.getValue(totalSquares) - 1);
             }
          }
@@ -152,16 +155,21 @@ std::unique_ptr<std::list<Move>> solver::getMoves(Board* board, logger* log)
    solMat.gaussianEliminate();
    solMat.render(log);
 
-   // 5 Use the eliminated matrix and reduce to discover which squares must be mines and
-   // which are unknown. Use those squares to generate a list of moves that you can
-   // return.
-   // Step 1: Find the first non zero row.
+   // 5 Read the RREF matrix back and classify each unknown square as mine, safe, or
+   // indeterminate. Two strategies are applied per row:
+   //   A) Direct solve: if all other variables in the row were already resolved, the
+   //      row reduces to a single equation "x = 0 or 1" that can be read off directly.
+   //   B) Min/max lemma: each variable is binary (0 or 1). If RHS == sum of all positive
+   //      coefficients (max), every positive-coefficient variable must be 1 (mine). If
+   //      RHS == sum of all negative coefficients (min), they must all be 0 (safe).
+
+   // Scan from the bottom to find the last row that contains any data; RREF pushes all-zero
+   // rows to the bottom so everything below firstNonZeroRow can be ignored.
    matrix<double>::width_size_type matrixWidth = solMat.getWidth();
    matrix<double>::height_size_type matrixHeight = solMat.getHeight();
    matrix<double>::height_size_type firstNonZeroRow = 0;
-   // if the condition looks incorrect then look again. row is often unsigned on multiple platforms
-   // so you cannot only say row >= 0 because that is always true you need to spot the integer 
-   // overflow as well otherwise you have an infinite loop
+   // height_size_type is unsigned: decrementing past 0 wraps to a huge value, making
+   // row < matrixHeight false and terminating the loop safely.
    for(matrix<double>::height_size_type row = matrixHeight - 1; row >= 0 && row < matrixHeight; --row)
    {
       Vector<double>* currentRow = solMat.getRow(row);
@@ -177,25 +185,29 @@ std::unique_ptr<std::list<Move>> solver::getMoves(Board* board, logger* log)
       }
    }
 
+   // results[i] holds the resolved value for variable i: true = mine, false = safe, empty = unknown.
    vector<std::optional<bool>> results;
    results.resize(matrixWidth - 1);
 
+   // Process rows from the last non-zero row up to row 0. The unsigned loop condition mirrors
+   // the one above: decrementing past 0 wraps, making row <= firstNonZeroRow false.
    matrix<double>::width_size_type maxVariableColumn = matrixWidth - 1;
    for(matrix<double>::height_size_type row = firstNonZeroRow; row >= 0 && row <= firstNonZeroRow; --row)
    {
-      // If there is not a 1 in the current square then look right until you find one.
-      // There cannot be values in a col that is < row because of the gaussian elimination
-
-      // Place values on the other side.
+      // Find the pivot: the first non-zero coefficient in this row. In RREF each pivot column
+      // has been normalised to 1; if column `row` is zero a free variable shifted the pivot right.
       bool failedToFindValue = false;
       matrix<double>::height_size_type pivot = row;
       double pivotVal = solMat.getValue(row, pivot);
       double val = solMat.getValue(row, maxVariableColumn);
+
+      // Back-substitute: for every already-resolved variable in this row, move its known
+      // contribution to the RHS so only the unknown pivot (and any other unknowns) remain.
       for(matrix<double>::width_size_type col = row + 1; col < maxVariableColumn; ++col)
       {
          double currentValue = solMat.getValue(row, col);
 
-         // Update the pivot if need be.
+         // If the diagonal entry was zero, slide right to the next non-zero entry as the pivot.
          if(fabs(pivotVal) < EPSILON && fabs(currentValue) > EPSILON)
          {
             pivot = col;
@@ -203,16 +215,17 @@ std::unique_ptr<std::list<Move>> solver::getMoves(Board* board, logger* log)
             (*log) << "Pivot updated to: " << pivot << " => " << currentValue << logger::endl;
          }
 
-         // Swap variables over to the other side.
          if(fabs(currentValue) > EPSILON)
          {
             if(results[col].has_value())
             {
+               // Variable already resolved: substitute its value into this row's RHS.
                val -= currentValue * (results[col].value() ? 1.0 : 0.0);
                solMat.setValue(row, col, 0.0);
-            } 
+            }
             else
             {
+               // At least one variable in this row is still unknown; direct solve is impossible.
                failedToFindValue = true;
             }
          }
@@ -224,8 +237,9 @@ std::unique_ptr<std::list<Move>> solver::getMoves(Board* board, logger* log)
       {
          if(failedToFindValue)
          {
-            (*log) << "==" << logger::endl;
-            // Otherwise Calculate min and max values for lemmas
+            // Direct solve failed. Try the min/max lemma instead.
+            // Compute the minimum and maximum possible values for the LHS given that each
+            // variable is binary: max = sum of positive coefficients, min = sum of negatives.
             double minValue = 0;
             double maxValue = 0;
 
@@ -233,12 +247,13 @@ std::unique_ptr<std::list<Move>> solver::getMoves(Board* board, logger* log)
             {
                double currentValue = solMat.getValue(row, col);
                if(currentValue > EPSILON) maxValue += currentValue;
-               if(currentValue < -EPSILON) minValue += currentValue; // plus a negative
+               if(currentValue < -EPSILON) minValue += currentValue;
             }
 
             if(fabs(val - minValue) < EPSILON)
             {
-               // every non zero item is actually zero
+               // RHS equals the minimum possible sum, so every positive-coefficient variable
+               // must be 0 (safe) and every negative-coefficient variable must be 1 (mine).
                for(matrix<double>::width_size_type col = row; col < maxVariableColumn; ++col)
                {
                   double currentValue = solMat.getValue(row, col);
@@ -255,7 +270,8 @@ std::unique_ptr<std::list<Move>> solver::getMoves(Board* board, logger* log)
             }
             else if (fabs(val - maxValue) < EPSILON)
             {
-               // every non zero item is actually zero
+               // RHS equals the maximum possible sum, so every positive-coefficient variable
+               // must be 1 (mine) and every negative-coefficient variable must be 0 (safe).
                for(matrix<double>::width_size_type col = row; col < maxVariableColumn; ++col)
                {
                   double currentValue = solMat.getValue(row, col);
@@ -270,11 +286,14 @@ std::unique_ptr<std::list<Move>> solver::getMoves(Board* board, logger* log)
                   }
                }
             }
-            // Apply lemmas to see if you can work it out using min and max properties.
+            // If val is strictly between min and max the constraint is underdetermined;
+            // we cannot classify any variable in this row without guessing.
          }
          else
          {
-            // If there is only the pivot left the row can be solved with normal methods
+            // All other variables were substituted out. After RREF the pivot coefficient is 1,
+            // so the row now reads "1 * x = val", meaning x = val. Since x is a binary mine
+            // indicator, val must be 0 (safe) or 1 (mine) on any valid board.
             if(results[pivot].has_value())
             {
                (*log) << "Already found pivot for: " << pivot << logger::endl;
