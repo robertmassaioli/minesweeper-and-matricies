@@ -4,7 +4,7 @@
 
 #include "logging.h"
 #include <cmath>
-#include <map>
+#include <unordered_map>
 #include <optional>
 
 static const double EPSILON = 1e-9;
@@ -64,8 +64,8 @@ std::unique_ptr<std::list<Move>> solver::getMoves(Board* board, logger* log)
 
    // 2 Get all of the adjacent squares that have not been clicked and identify them.
    int currentSquareId = 0;
-   map<int, int> idToPosition;
-   map<int, int> positionToId;
+   unordered_map<int, int> idToPosition;
+   unordered_map<int, int> positionToId;
    for(
          list<Position>::const_iterator it = nonCompletedPositions.begin();
          it != nonCompletedPositions.end();
@@ -79,7 +79,7 @@ std::unique_ptr<std::list<Move>> solver::getMoves(Board* board, logger* log)
             int position = board->locPos(tempPos);
             if(grid[position].state == NOT_CLICKED)
             {
-               map<int, int>::iterator found = positionToId.find(position);
+               unordered_map<int, int>::iterator found = positionToId.find(position);
                if(found == positionToId.end())
                {
                   positionToId[position] = currentSquareId;
@@ -102,7 +102,7 @@ std::unique_ptr<std::list<Move>> solver::getMoves(Board* board, logger* log)
    // print out every element int the maps
    (*log) << "Id: Position" << logger::endl;
    for(
-         map<int, int>::const_iterator iter = idToPosition.begin();
+         unordered_map<int, int>::const_iterator iter = idToPosition.begin();
          iter != idToPosition.end();
          ++iter
       )
