@@ -7,7 +7,7 @@ Ten concrete improvements across different functional areas, ranked roughly from
 | # | Title | Status |
 |---|-------|--------|
 | 1 | Probabilistic Guessing When Stuck | |
-| 2 | Switch Gaussian Elimination to Full RREF | |
+| 2 | Switch Gaussian Elimination to Full RREF | ✅ |
 | 3 | Replace Raw Pointers with Smart Pointers | |
 | 4 | Game and Solver Integration Tests | |
 | 5 | Avoid Re-solving the Entire Board Each Turn | |

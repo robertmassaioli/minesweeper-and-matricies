@@ -209,17 +209,16 @@ class matrix
                A currentValue = getValue(row, col);
                rows[row]->multiply(A(1.0) / currentValue);
 
-               // u => iterRow
-               for(int iterRow = row + 1; iterRow < totalRows; ++iterRow)
+               // Eliminate this column from all other rows (full RREF, not just rows below).
+               for(int iterRow = 0; iterRow < totalRows; ++iterRow)
                {
+                  if(iterRow == row) continue;
                   A mulVal = -getValue(iterRow, col);
                   if(abs(mulVal) > A(1e-9))
                   {
                      rows[row]->multiply(mulVal);
                      rows[iterRow]->add(rows[row]);
                      rows[row]->multiply(A(1.0) / mulVal);
-                     // (*log) << "Using row " << row << " to fix " << iterRow << logging::endl; 
-                     // render();
                   }
                }
 
