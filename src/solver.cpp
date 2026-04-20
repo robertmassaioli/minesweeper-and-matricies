@@ -1,8 +1,10 @@
 #include "game.h"
 #include "solver.h"
 #include "matrix.h"
+#include "sampler.h"
 
 #include "logging.h"
+#include <algorithm>
 #include <cmath>
 #include <optional>
 #include <vector>
@@ -333,6 +335,132 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
          (*log) << "NA";
       }
       (*log) << logger::endl;
+   }
+
+   // -------------------------------------------------------------------
+   // Probabilistic fallback: if no certain moves were found, run the
+   // Monte Carlo sampler to estimate mine probabilities and click the
+   // least dangerous unknown square.
+   // -------------------------------------------------------------------
+   if (moves->empty())
+   {
+      // Scan the board for: flagged squares (to compute remaining mines)
+      // and unconstrained unknowns (NOT_CLICKED, not in any constraint row).
+      int flagCount = 0;
+      std::vector<int> unconstrainedPositions;
+      for (int pos = 0; pos < totalBoardSquares; ++pos)
+      {
+         if (grid[pos].state == FLAG_CLICKED)
+         {
+            ++flagCount;
+         }
+         else if (grid[pos].state == NOT_CLICKED && positionToId[pos] == -1)
+         {
+            unconstrainedPositions.push_back(pos);
+         }
+      }
+
+      int remainingMines = board->getMineCount() - flagCount;
+
+      // Build a plain snapshot of the post-RREF constraint matrix.
+      RrefSnapshot snap;
+      snap.numVars = static_cast<int>(matrixWidth - 1);
+      snap.numRows = static_cast<int>(firstNonZeroRow + 1);
+      snap.data.resize(snap.numRows * (snap.numVars + 1));
+      for (int r = 0; r < snap.numRows; ++r)
+         for (int c = 0; c <= snap.numVars; ++c)
+            snap.data[r * (snap.numVars + 1) + c] = solMat.getValue(r, c);
+
+      // Enable global mine count enforcement only when the constrained frontier
+      // covers most of the remaining unknowns (unconstrained region is small or
+      // empty), so the constraint is useful rather than just a rejection filter.
+      int totalUnknowns = snap.numVars + static_cast<int>(unconstrainedPositions.size());
+      SamplingConfig cfg;
+      cfg.enforceGlobalCount  = (unconstrainedPositions.empty() ||
+                                  remainingMines <= snap.numVars);
+      cfg.totalRemainingMines = remainingMines;
+
+      SamplingResult sr = runMonteCarlo(snap,
+                                        static_cast<unsigned>(rand()),
+                                        cfg);
+
+      (*log) << "MC sampler: " << sr.accepted << "/" << sr.attempted
+             << " accepted (" << sr.acceptanceRate * 100.0 << "%) reliable="
+             << (sr.reliable ? "yes" : "no") << logger::endl;
+
+      if (sr.reliable)
+      {
+         // Find the constrained variable with the lowest mine probability.
+         int    bestVar  = -1;
+         double bestProb = 2.0;
+         for (int i = 0; i < snap.numVars; ++i)
+         {
+            if (sr.probabilities[i] < bestProb)
+            {
+               bestProb = sr.probabilities[i];
+               bestVar  = i;
+            }
+         }
+
+         // Estimate probability for the unconstrained region.
+         double expectedConstrainedMines = 0.0;
+         for (int i = 0; i < snap.numVars; ++i)
+            expectedConstrainedMines += sr.probabilities[i];
+         double remainingForUnconstrained =
+            std::max(0.0, remainingMines - expectedConstrainedMines);
+         double unconstrainedProb =
+            unconstrainedPositions.empty()
+               ? 2.0
+               : remainingForUnconstrained / unconstrainedPositions.size();
+
+         (*log) << "MC best constrained prob=" << bestProb
+                << " unconstrained prob=" << unconstrainedProb << logger::endl;
+
+         if (!unconstrainedPositions.empty() && unconstrainedProb < bestProb)
+         {
+            // All unconstrained squares are exchangeable — pick the first.
+            moves->push_back(
+               Move(board->posLoc(unconstrainedPositions[0]), NORMAL));
+         }
+         else if (bestVar >= 0)
+         {
+            moves->push_back(
+               Move(board->posLoc(idToPosition[bestVar]), NORMAL));
+         }
+      }
+      else
+      {
+         // Acceptance rate was too low for reliable estimates.  Fall back to
+         // the least-constrained variable: the one with the fewest non-zero
+         // entries in the RREF (fewest constraints bearing on it).
+         (*log) << "MC sampler unreliable — using least-constrained fallback"
+                << logger::endl;
+
+         int bestVar        = -1;
+         int fewestNonZeros = INT_MAX;
+         for (int col = 0; col < snap.numVars; ++col)
+         {
+            int count = 0;
+            for (int r = 0; r < snap.numRows; ++r)
+               count += (std::fabs(snap.getValue(r, col)) > EPSILON) ? 1 : 0;
+            if (count < fewestNonZeros)
+            {
+               fewestNonZeros = count;
+               bestVar        = col;
+            }
+         }
+
+         if (!unconstrainedPositions.empty())
+         {
+            moves->push_back(
+               Move(board->posLoc(unconstrainedPositions[0]), NORMAL));
+         }
+         else if (bestVar >= 0)
+         {
+            moves->push_back(
+               Move(board->posLoc(idToPosition[bestVar]), NORMAL));
+         }
+      }
    }
 
    return moves;

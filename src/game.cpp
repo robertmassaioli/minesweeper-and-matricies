@@ -255,6 +255,11 @@ Square* Board::getGrid()
    return grid.get();
 }
 
+int Board::getMineCount() const
+{
+   return mines;
+}
+
 Position Board::posLoc(int position) const
 {
    int row = position / dim.getWidth();

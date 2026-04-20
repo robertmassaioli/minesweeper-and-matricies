@@ -102,6 +102,7 @@ class Board
 
       Dimensions getDimensions() const;
       Square* getGrid();
+      int getMineCount() const;
 
       bool isGenerated();
       
