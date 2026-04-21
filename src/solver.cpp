@@ -24,6 +24,8 @@ static int adjMap[8][2] = {
    {-1,0}
 };
 
+solver::solver(GuessingStrategy strat) : strategy(strat) {}
+
 std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
 {
    Square* grid = board->getGrid();
@@ -342,7 +344,7 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
    // Monte Carlo sampler to estimate mine probabilities and click the
    // least dangerous unknown square.
    // -------------------------------------------------------------------
-   if (moves->empty())
+   if (moves->empty() && strategy == GuessingStrategy::MONTE_CARLO)
    {
       // Scan the board for: flagged squares (to compute remaining mines)
       // and unconstrained unknowns (NOT_CLICKED, not in any constraint row).

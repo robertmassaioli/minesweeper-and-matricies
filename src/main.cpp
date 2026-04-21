@@ -44,7 +44,8 @@ class results
 };
 
 static void printResults(logger* log, results& res);
-static GameState solveRandomGame(Dimensions& dim, int mineCount, logger* log);
+static GameState solveRandomGame(Dimensions& dim, int mineCount,
+                                  GuessingStrategy strategy, logger* log);
 
 int main(int argc, char** argv)
 {
@@ -81,7 +82,7 @@ int main(int argc, char** argv)
       (*log) << "Random Seed: " << randomSeed << logger::endl << logger::endl;
 
       // Solve a game and count the result
-      GameState result = solveRandomGame(dim, mines, log.get());
+      GameState result = solveRandomGame(dim, mines, cfg.strategy, log.get());
       res.count(result, randomSeed);
 
       if(i % 500 == 0)
@@ -100,10 +101,11 @@ int main(int argc, char** argv)
    return EXIT_SUCCESS;
 }
 
-static GameState solveRandomGame(Dimensions& dim, int mineCount, logger* log)
+static GameState solveRandomGame(Dimensions& dim, int mineCount,
+                                  GuessingStrategy strategy, logger* log)
 {
    Game game(dim, mineCount, log);
-   solver turnSolver;
+   solver turnSolver(strategy);
 
    // Make the initial move
    // TODO make this a random move

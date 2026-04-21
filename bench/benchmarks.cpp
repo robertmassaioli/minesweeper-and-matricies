@@ -7,6 +7,7 @@
 
 #include "game.h"
 #include "solver.h"
+#include "config.h"
 #include "logging.h"
 #include "matrix.h"
 
@@ -88,7 +89,7 @@ static void benchFullGame()
         game.acceptMove(first);
     }
 
-    solver s;
+    solver s(GuessingStrategy::NONE);
     std::unique_ptr<std::vector<Move>> moves;
     do
     {
@@ -130,7 +131,7 @@ static void benchSolverTurn()
         game->acceptMove(first);
     }
 
-    solver s;
+    solver s(GuessingStrategy::NONE);
     // Call getMoves once on the same initial board state.  We intentionally
     // do NOT apply the returned moves so the board stays identical across
     // iterations, giving a stable, repeatable measurement.

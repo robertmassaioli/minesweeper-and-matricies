@@ -16,6 +16,10 @@ Options:
                     Sets width, height, and mines. Individual flags override.
   --seed N          Fix the initial RNG seed for reproducible runs (default: time-based)
   --log FILE        Write per-game trace to FILE
+  --strategy NAME   Guessing strategy when no certain move exists (default: monte-carlo)
+                    none          -- never guess; record stalled games as PROGRESS
+                    monte-carlo   -- estimate mine probabilities via constraint-matrix
+                                    sampling and click the least dangerous square
   --help            Print this message and exit
 
 Presets:
@@ -70,6 +74,14 @@ static unsigned parseUnsignedInt(const std::string& token, const std::string& fl
         usageError(flag + " requires an integer value, got: " + token);
         return 0; // unreachable
     }
+}
+
+static GuessingStrategy parseStrategy(const std::string& name)
+{
+    if (name == "none")         return GuessingStrategy::NONE;
+    if (name == "monte-carlo")  return GuessingStrategy::MONTE_CARLO;
+    usageError("unknown strategy '" + name + "' (choose: none, monte-carlo)");
+    return GuessingStrategy::NONE; // unreachable
 }
 
 static void applyPreset(const std::string& name, Config& cfg)
@@ -133,6 +145,10 @@ Config parseArgs(int argc, char** argv)
         else if (flag == "--log")
         {
             cfg.logFile = nextToken(++i, argc, argv, flag);
+        }
+        else if (flag == "--strategy")
+        {
+            cfg.strategy = parseStrategy(nextToken(++i, argc, argv, flag));
         }
         else
         {
