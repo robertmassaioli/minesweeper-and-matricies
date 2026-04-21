@@ -70,9 +70,10 @@ Board::~Board()
 
 void Board::print()
 {
-   for(int row = 0; row < dim.getHeight(); ++row) 
+   logger& l = log->at(LogLevel::DEBUG);
+   for(int row = 0; row < dim.getHeight(); ++row)
    {
-      for(int col = 0; col < dim.getWidth(); ++col) 
+      for(int col = 0; col < dim.getWidth(); ++col)
       {
          int position = locPos(col, row);
          int gridValue;
@@ -83,38 +84,38 @@ void Board::print()
                switch(gridValue)
                {
                   case MINE:
-                     (*log) << "M";
+                     l << "M";
                      break;
 
                   case EMPTY:
-                     (*log) << " ";
+                     l << " ";
                      break;
 
                   default:
-                     (*log) << gridValue;
+                     l << gridValue;
                      break;
                }
                break;
 
             case FLAG_CLICKED:
-               (*log) << "F";
+               l << "F";
                break;
 
             case QUESTION_CLICKED:
-               (*log) << "?";
+               l << "?";
                break;
 
             case NOT_CLICKED:
-               (*log) << "#";
+               l << "#";
                break;
 
             default:
-               (*log) << "E";
+               l << "E";
                break;
          }
       }
-      
-      (*log) << logger::endl;
+
+      l << logger::endl;
    }
 }
 

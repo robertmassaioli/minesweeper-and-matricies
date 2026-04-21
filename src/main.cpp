@@ -58,7 +58,9 @@ int main(int argc, char** argv)
    if (!cfg.logFile.empty())
    {
       logStream = std::make_unique<std::fstream>(cfg.logFile, std::fstream::out);
-      log = std::make_unique<ostream_logger>(*logStream);
+      auto ol = std::make_unique<ostream_logger>(*logStream);
+      ol->setLevel(cfg.logLevel);
+      log = std::move(ol);
    }
    else
    {
@@ -72,7 +74,7 @@ int main(int argc, char** argv)
    // Init the random numbers
    unsigned int initialRandom = cfg.fixedSeed ? cfg.seed : unsigned(time(NULL));
    srand(initialRandom);
-   (*log) << "Initial Random: " << initialRandom << logger::endl;
+   log->at(LogLevel::INFO) << "Initial Random: " << initialRandom << logger::endl;
 
    results res;
    for(int i = 0; i < testRuns; ++i)
@@ -126,12 +128,12 @@ static const char* gameStateName(GameState s)
 static GameState solveRandomGame(Dimensions& dim, int mineCount,
                                   GuessingStrategy strategy, logger* log)
 {
-   (*log) << std::string(60, '=') << logger::endl;
-   (*log) << " GAME START" << logger::endl;
-   (*log) << " Board: " << dim.getWidth() << " x " << dim.getHeight()
-          << ",  mines: " << mineCount
-          << ",  strategy: " << strategyName(strategy) << logger::endl;
-   (*log) << std::string(60, '=') << logger::endl;
+   log->at(LogLevel::INFO) << std::string(60, '=') << logger::endl;
+   log->at(LogLevel::INFO) << " GAME START" << logger::endl;
+   log->at(LogLevel::INFO) << " Board: " << dim.getWidth() << " x " << dim.getHeight()
+                           << ",  mines: " << mineCount
+                           << ",  strategy: " << strategyName(strategy) << logger::endl;
+   log->at(LogLevel::INFO) << std::string(60, '=') << logger::endl;
 
    Game game(dim, mineCount, log);
    solver turnSolver(strategy);
@@ -163,13 +165,13 @@ static GameState solveRandomGame(Dimensions& dim, int mineCount,
       game.print();
    } while (game.getState() == PROGRESS && movesToPerform && !movesToPerform->empty());
 
-   (*log) << logger::endl;
+   log->at(LogLevel::DEBUG) << logger::endl;
    game.print();
 
    GameState finalState = game.getState();
-   (*log) << std::string(60, '=') << logger::endl;
-   (*log) << " GAME END: " << gameStateName(finalState) << logger::endl;
-   (*log) << std::string(60, '=') << logger::endl;
+   log->at(LogLevel::INFO) << std::string(60, '=') << logger::endl;
+   log->at(LogLevel::INFO) << " GAME END: " << gameStateName(finalState) << logger::endl;
+   log->at(LogLevel::INFO) << std::string(60, '=') << logger::endl;
 
    return finalState;
 }

@@ -1,6 +1,7 @@
 #ifndef MNM_CONFIG_H
 #define MNM_CONFIG_H
 
+#include "logging.h"
 #include <string>
 
 enum class GuessingStrategy
@@ -19,6 +20,7 @@ struct Config
     bool            fixedSeed = false;
     std::string     logFile;             // empty means no log file
     GuessingStrategy strategy = GuessingStrategy::MONTE_CARLO;
+    LogLevel         logLevel = LogLevel::DEBUG;
 };
 
 #endif

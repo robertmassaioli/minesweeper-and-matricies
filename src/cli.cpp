@@ -16,6 +16,12 @@ Options:
                     Sets width, height, and mines. Individual flags override.
   --seed N          Fix the initial RNG seed for reproducible runs (default: time-based)
   --log FILE        Write per-game trace to FILE
+  --log-level LVL   Verbosity of the log file (default: debug)
+                    error  -- [WARN] messages and solver failures only
+                    warn   -- same as error plus explicit warnings
+                    info   -- game header/footer and per-turn move summaries
+                    debug  -- adds turn headers, deductions, results, board prints
+                    trace  -- adds full matrix dumps and MC probability table
   --strategy NAME   Guessing strategy when no certain move exists (default: monte-carlo)
                     none          -- never guess; record stalled games as PROGRESS
                     monte-carlo   -- estimate mine probabilities via constraint-matrix
@@ -74,6 +80,17 @@ static unsigned parseUnsignedInt(const std::string& token, const std::string& fl
         usageError(flag + " requires an integer value, got: " + token);
         return 0; // unreachable
     }
+}
+
+static LogLevel parseLogLevel(const std::string& name)
+{
+    if (name == "error") return LogLevel::ERROR;
+    if (name == "warn")  return LogLevel::WARN;
+    if (name == "info")  return LogLevel::INFO;
+    if (name == "debug") return LogLevel::DEBUG;
+    if (name == "trace") return LogLevel::TRACE;
+    usageError("unknown log level '" + name + "' (choose: error, warn, info, debug, trace)");
+    return LogLevel::DEBUG; // unreachable
 }
 
 static GuessingStrategy parseStrategy(const std::string& name)
@@ -145,6 +162,10 @@ Config parseArgs(int argc, char** argv)
         else if (flag == "--log")
         {
             cfg.logFile = nextToken(++i, argc, argv, flag);
+        }
+        else if (flag == "--log-level")
+        {
+            cfg.logLevel = parseLogLevel(nextToken(++i, argc, argv, flag));
         }
         else if (flag == "--strategy")
         {

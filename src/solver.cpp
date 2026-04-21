@@ -6,7 +6,9 @@
 #include "logging.h"
 #include <algorithm>
 #include <cmath>
+#include <iomanip>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -30,9 +32,9 @@ solver::solver(GuessingStrategy strat) : strategy(strat), turnCount(0) {}
 std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
 {
    ++turnCount;
-   (*log) << std::string(60, '=') << logger::endl;
-   (*log) << " SOLVER TURN " << turnCount << logger::endl;
-   (*log) << std::string(60, '=') << logger::endl;
+   log->at(LogLevel::DEBUG) << std::string(60, '=') << logger::endl;
+   log->at(LogLevel::DEBUG) << " SOLVER TURN " << turnCount << logger::endl;
+   log->at(LogLevel::DEBUG) << std::string(60, '=') << logger::endl;
 
    Square* grid = board->getGrid();
 
@@ -108,8 +110,8 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
       }
    }
 
-   (*log) << "Non flagged positions: " << nonCompletedPositions.size() << logger::endl;
-   (*log) << "Total Squares: " << currentSquareId << logger::endl;
+   log->at(LogLevel::TRACE) << "Non flagged positions: " << nonCompletedPositions.size() << logger::endl;
+   log->at(LogLevel::TRACE) << "Total Squares: " << currentSquareId << logger::endl;
 
    if(nonCompletedPositions.empty() || currentSquareId == 0)
    {
@@ -158,9 +160,9 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
    }
 
    // 4 Gaussian Eliminate the Matrix
-   solMat.render(log);
+   { logger& tl = log->at(LogLevel::TRACE); solMat.render(&tl); }
    solMat.gaussianEliminate();
-   solMat.render(log);
+   { logger& tl = log->at(LogLevel::TRACE); solMat.render(&tl); }
 
    // 5 Read the RREF matrix back and classify each unknown square as mine, safe, or
    // indeterminate. Two strategies are applied per row:
@@ -219,8 +221,8 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
          {
             pivot = col;
             pivotVal = currentValue;
-            (*log) << "[RREF] Row " << row << ": pivot at " << varStr(pivot)
-                   << ", coefficient=" << currentValue << logger::endl;
+            log->at(LogLevel::DEBUG) << "[RREF] Row " << row << ": pivot at " << varStr(pivot)
+                                     << ", coefficient=" << currentValue << logger::endl;
          }
 
          if(fabs(currentValue) > EPSILON)
@@ -240,8 +242,9 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
       }
       if(hasUnresolvedVars)
       {
-         (*log) << "[RREF] Row " << row << ": has unresolved variables, trying min/max lemma"
-                << logger::endl;
+         log->at(LogLevel::DEBUG) << "[RREF] Row " << row
+                                  << ": has unresolved variables, trying min/max lemma"
+                                  << logger::endl;
       }
       solMat.setValue(row, maxVariableColumn, val);
 
@@ -271,14 +274,14 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
                   double currentValue = solMat.getValue(row, col);
                   if(currentValue > EPSILON)
                   {
-                     (*log) << "[Deduced] " << varStr(col) << ": SAFE (min/max lemma)"
-                            << logger::endl;
+                     log->at(LogLevel::DEBUG) << "[Deduced] " << varStr(col)
+                                              << ": SAFE (min/max lemma)" << logger::endl;
                      results[col] = std::optional<bool>(false);
                   }
                   if(currentValue < -EPSILON)
                   {
-                     (*log) << "[Deduced] " << varStr(col) << ": MINE (min/max lemma)"
-                            << logger::endl;
+                     log->at(LogLevel::DEBUG) << "[Deduced] " << varStr(col)
+                                              << ": MINE (min/max lemma)" << logger::endl;
                      results[col] = std::optional<bool>(true);
                   }
                }
@@ -292,14 +295,14 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
                   double currentValue = solMat.getValue(row, col);
                   if(currentValue > EPSILON)
                   {
-                     (*log) << "[Deduced] " << varStr(col) << ": MINE (min/max lemma)"
-                            << logger::endl;
+                     log->at(LogLevel::DEBUG) << "[Deduced] " << varStr(col)
+                                              << ": MINE (min/max lemma)" << logger::endl;
                      results[col] = std::optional<bool>(true);
                   }
                   if(currentValue < -EPSILON)
                   {
-                     (*log) << "[Deduced] " << varStr(col) << ": SAFE (min/max lemma)"
-                            << logger::endl;
+                     log->at(LogLevel::DEBUG) << "[Deduced] " << varStr(col)
+                                              << ": SAFE (min/max lemma)" << logger::endl;
                      results[col] = std::optional<bool>(false);
                   }
                }
@@ -314,58 +317,61 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
             // indicator, val must be 0 (safe) or 1 (mine) on any valid board.
             if(results[pivot].has_value())
             {
-               (*log) << "[RREF] " << varStr(pivot) << " already resolved, skipping"
-                      << logger::endl;
+               log->at(LogLevel::DEBUG) << "[RREF] " << varStr(pivot)
+                                        << " already resolved, skipping" << logger::endl;
             }
             else
             {
                if(fabs(val) < EPSILON || fabs(val - 1.0) < EPSILON)
                {
                   bool isMine = fabs(val - 1.0) < EPSILON;
-                  (*log) << "[Deduced] " << varStr(pivot) << ": "
-                         << (isMine ? "MINE" : "SAFE") << " (direct solve, val="
-                         << val << ")" << logger::endl;
+                  log->at(LogLevel::DEBUG) << "[Deduced] " << varStr(pivot) << ": "
+                                           << (isMine ? "MINE" : "SAFE")
+                                           << " (direct solve, val=" << val << ")"
+                                           << logger::endl;
                   results[pivot] = optional<bool>(isMine);
                }
                else
                {
-                  (*log) << "[WARN] " << varStr(pivot)
-                         << " direct-solve value=" << val
-                         << " is not 0 or 1 (numerical error?)" << logger::endl;
+                  log->at(LogLevel::WARN) << "[WARN] " << varStr(pivot)
+                                          << " direct-solve value=" << val
+                                          << " is not 0 or 1 (numerical error?)"
+                                          << logger::endl;
                }
             }
          }
       }
       else
       {
-         (*log) << "[RREF] Row " << row << " has no pivot (all-zero row)" << logger::endl;
+         log->at(LogLevel::DEBUG) << "[RREF] Row " << row
+                                  << " has no pivot (all-zero row)" << logger::endl;
       }
    }
 
    // print out results
    auto moves = std::make_unique<std::vector<Move>>();
-   (*log) << logger::endl << "Results:" << logger::endl;
+   log->at(LogLevel::DEBUG) << logger::endl << "Results:" << logger::endl;
    for(matrix<double>::width_size_type i = 0; i < matrixWidth - 1; ++i)
    {
-      (*log) << "  [Result] " << varStr(i) << ": ";
+      log->at(LogLevel::DEBUG) << "  [Result] " << varStr(i) << ": ";
       if(results[i].has_value())
       {
          if(results[i].value())
          {
-            (*log) << "MINE";
+            log->at(LogLevel::DEBUG) << "MINE";
             moves->push_back(Move(board->posLoc(idToPosition[(int) i]), FLAG));
          }
          else
          {
-            (*log) << "SAFE";
+            log->at(LogLevel::DEBUG) << "SAFE";
             moves->push_back(Move(board->posLoc(idToPosition[(int) i]), NORMAL));
          }
       }
       else
       {
-         (*log) << "UNDECIDED";
+         log->at(LogLevel::DEBUG) << "UNDECIDED";
       }
-      (*log) << logger::endl;
+      log->at(LogLevel::DEBUG) << logger::endl;
    }
 
    // -------------------------------------------------------------------
@@ -405,7 +411,6 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
       // Enable global mine count enforcement only when the constrained frontier
       // covers most of the remaining unknowns (unconstrained region is small or
       // empty), so the constraint is useful rather than just a rejection filter.
-      int totalUnknowns = snap.numVars + static_cast<int>(unconstrainedPositions.size());
       SamplingConfig cfg;
       cfg.enforceGlobalCount  = (unconstrainedPositions.empty() ||
                                   remainingMines <= snap.numVars);
@@ -415,9 +420,15 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
                                         static_cast<unsigned>(rand()),
                                         cfg);
 
-      (*log) << "MC sampler: " << sr.accepted << "/" << sr.attempted
-             << " accepted (" << sr.acceptanceRate * 100.0 << "%) reliable="
-             << (sr.reliable ? "yes" : "no") << logger::endl;
+      // Format acceptance rate to one decimal place for readability.
+      {
+         std::ostringstream oss;
+         oss << std::fixed << std::setprecision(1) << (sr.acceptanceRate * 100.0);
+         log->at(LogLevel::DEBUG) << "[MC] " << sr.accepted << "/" << sr.attempted
+                                  << " samples accepted (" << oss.str()
+                                  << "%), reliable=" << (sr.reliable ? "yes" : "no")
+                                  << logger::endl;
+      }
 
       if (sr.reliable)
       {
@@ -444,17 +455,51 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
                ? 2.0
                : remainingForUnconstrained / unconstrainedPositions.size();
 
-         (*log) << "MC best constrained prob=" << bestProb
-                << " unconstrained prob=" << unconstrainedProb << logger::endl;
+         // TRACE: full probability table
+         {
+            logger& tl = log->at(LogLevel::TRACE);
+            tl << "[MC] Variable probabilities (" << snap.numVars << " constrained):"
+               << logger::endl;
+            for (int i = 0; i < snap.numVars; ++i)
+            {
+               std::ostringstream oss;
+               oss << std::fixed << std::setprecision(3) << sr.probabilities[i];
+               tl << "[MC]   " << varStr(i) << ": p(mine)=" << oss.str() << logger::endl;
+            }
+            if (!unconstrainedPositions.empty())
+            {
+               std::ostringstream oss;
+               oss << std::fixed << std::setprecision(3) << unconstrainedProb;
+               tl << "[MC]   Unconstrained: " << unconstrainedPositions.size()
+                  << " squares, est. p(mine)=" << oss.str() << " each" << logger::endl;
+            }
+            else
+            {
+               tl << "[MC]   Unconstrained: none" << logger::endl;
+            }
+         }
 
          if (!unconstrainedPositions.empty() && unconstrainedProb < bestProb)
          {
-            // All unconstrained squares are exchangeable — pick the first.
+            std::ostringstream oss;
+            oss << std::fixed << std::setprecision(3) << unconstrainedProb;
+            log->at(LogLevel::DEBUG)
+               << "[MC] Decision: CLICK unconstrained pos="
+               << coordStr(unconstrainedPositions[0])
+               << " p(mine)=" << oss.str()
+               << " [lower than best constrained p="
+               << std::to_string(bestProb) << "]" << logger::endl;
             moves->push_back(
                Move(board->posLoc(unconstrainedPositions[0]), NORMAL));
          }
          else if (bestVar >= 0)
          {
+            std::ostringstream oss;
+            oss << std::fixed << std::setprecision(3) << bestProb;
+            log->at(LogLevel::DEBUG)
+               << "[MC] Decision: CLICK " << varStr(bestVar)
+               << " p(mine)=" << oss.str()
+               << " [constrained, lowest probability]" << logger::endl;
             moves->push_back(
                Move(board->posLoc(idToPosition[bestVar]), NORMAL));
          }
@@ -464,8 +509,8 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
          // Acceptance rate was too low for reliable estimates.  Fall back to
          // the least-constrained variable: the one with the fewest non-zero
          // entries in the RREF (fewest constraints bearing on it).
-         (*log) << "MC sampler unreliable — using least-constrained fallback"
-                << logger::endl;
+         log->at(LogLevel::DEBUG) << "[MC] Sampler unreliable — using least-constrained fallback"
+                                  << logger::endl;
 
          int bestVar        = -1;
          int fewestNonZeros = INT_MAX;
@@ -483,11 +528,19 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
 
          if (!unconstrainedPositions.empty())
          {
+            log->at(LogLevel::DEBUG)
+               << "[MC] Decision: CLICK unconstrained pos="
+               << coordStr(unconstrainedPositions[0])
+               << " [sampler unreliable, fallback]" << logger::endl;
             moves->push_back(
                Move(board->posLoc(unconstrainedPositions[0]), NORMAL));
          }
          else if (bestVar >= 0)
          {
+            log->at(LogLevel::DEBUG)
+               << "[MC] Decision: CLICK " << varStr(bestVar)
+               << " [least-constrained, " << fewestNonZeros << " constraint(s)]"
+               << logger::endl;
             moves->push_back(
                Move(board->posLoc(idToPosition[bestVar]), NORMAL));
          }
@@ -499,13 +552,13 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
       int mineCount = 0, safeCount = 0;
       for (Move m : *moves)
          m.getClickType() == FLAG ? ++mineCount : ++safeCount;
-      (*log) << logger::endl;
-      (*log) << std::string(60, '-') << logger::endl;
-      (*log) << " Turn " << turnCount << " summary: "
-             << mineCount << " mine(s) flagged, "
-             << safeCount << " safe square(s) clicked, "
-             << (mineCount + safeCount) << " total move(s)" << logger::endl;
-      (*log) << std::string(60, '-') << logger::endl;
+      log->at(LogLevel::INFO) << logger::endl;
+      log->at(LogLevel::INFO) << std::string(60, '-') << logger::endl;
+      log->at(LogLevel::INFO) << " Turn " << turnCount << " summary: "
+                              << mineCount << " mine(s) flagged, "
+                              << safeCount << " safe square(s) clicked, "
+                              << (mineCount + safeCount) << " total move(s)" << logger::endl;
+      log->at(LogLevel::INFO) << std::string(60, '-') << logger::endl;
    }
 
    return moves;

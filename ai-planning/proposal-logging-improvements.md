@@ -1,6 +1,6 @@
 # Proposal: Logging Output Improvements
 
-**Status:** Partially implemented (suggestions 1, 2, 4, 5, 6, 7, 8 done; 3 and 9 pending)  
+**Status:** Partially implemented (suggestions 1, 2, 4, 5, 6, 7, 8, 9, 10 done; 3 pending)  
 **Author:** Claude Code  
 **Date:** 2026-04-20
 
@@ -219,7 +219,50 @@ On turn 2 with 41 variables, this is 41 lines before any meaningful output. Comb
 
 ---
 
-## Suggestion 9: Verbosity Levels (PENDING)
+## Suggestion 10: Improve Monte Carlo Logging ✓ IMPLEMENTED
+
+### Problem
+The Monte Carlo fallback currently produces two almost unreadable lines:
+```
+MC sampler: 200/1124 accepted (17.7936%) reliable=yes
+MC best constrained prob=0 unconstrained prob=0
+```
+
+Issues:
+1. `prob=0` — is this 0% mine probability? Looks like a bug / uninitialized value.
+2. `best constrained` / `unconstrained prob` — no coordinates; impossible to know which cells these refer to.
+3. No visibility into the full probability distribution — can't see how the decision was reached.
+4. No explicit statement of which cell was actually selected.
+5. `unconstrained prob=0` is meaningful (0 remaining mines for the unconstrained region) but looks like a display error.
+6. Excessive decimal precision (`17.7936%`) adds noise rather than signal.
+
+### Proposed format
+At DEBUG level (one-line summary + decision):
+```
+[MC] 200/1124 samples accepted (17.8%), reliable=yes
+[MC] Decision: CLICK id=0 pos=(3,4) p(mine)=0.000  [constrained, lowest probability]
+```
+Or when an unconstrained square is preferred:
+```
+[MC] Decision: CLICK unconstrained pos=(7,11) p(mine)=0.12  [lower than best constrained p=0.31]
+```
+
+At TRACE level (full probability table):
+```
+[MC] Variable probabilities (13 constrained):
+[MC]   id=0  pos=(3,4):   p(mine)=0.000
+[MC]   id=1  pos=(4,4):   p(mine)=0.154
+[MC]   id=2  pos=(5,4):   p(mine)=0.308
+[MC]   ...
+[MC]   Unconstrained: 42 squares, est. p(mine)=0.120 each
+```
+
+### Implementation
+Move the two existing `(*log) <<` MC lines to DEBUG level; add a TRACE-level loop over `sr.probabilities` printing each variable with its coordinate. Replace the `prob=X unconstrained prob=Y` line with a decision statement that names the winner explicitly.
+
+---
+
+## Suggestion 9: Verbosity Levels ✓ IMPLEMENTED
 
 ### Problem
 All of the above improvements still produce a long log for a single game. For bulk runs (100k games) the log is either completely suppressed (`nop_logger`) or overwhelmingly verbose. There is no middle ground.
@@ -227,17 +270,17 @@ All of the above improvements still produce a long log for a single game. For bu
 ### Proposal
 Add a `LogLevel` to the `logger` interface:
 ```cpp
-enum class LogLevel { ERROR, WARN, INFO, DEBUG, TRACE };
+enum class LogLevel { ERROR = 0, WARN = 1, INFO = 2, DEBUG = 3, TRACE = 4 };
 ```
-- `ERROR` / `WARN`: game outcome and any solver failures only.
-- `INFO`: game header/footer + per-turn move summaries (Suggestions 5 & 6).
-- `DEBUG`: adds human-readable deductions (Suggestion 4) and board prints.
-- `TRACE`: adds full matrix dumps and variable tables (current behaviour).
+- `ERROR` / `WARN`: solver failures and `[WARN]` messages only.
+- `INFO`: game header/footer + per-turn move summaries.
+- `DEBUG`: adds turn headers, `[RREF]`/`[Deduced]`/`[Result]` messages, board prints, MC summary.
+- `TRACE`: adds full matrix dumps before and after RREF, MC probability table.
 
-The existing `--log` CLI option could gain an optional level suffix: `--log game.out:debug`.
+A new `--log-level error|warn|info|debug|trace` CLI option controls the threshold (default: `debug`).
 
 ### Implementation
-Add `setLevel(LogLevel)` and `shouldLog(LogLevel) const` to the `logger` base class. Guard each log statement with a level check. This is the highest-effort suggestion but enables all others to co-exist without overwhelming low-verbosity runs.
+Add `virtual logger& at(LogLevel) = 0` to the `logger` base. `nop_logger::at()` returns `*this` (still a no-op). `ostream_logger` stores a `threshold_` and a `nop_` member; `at(level)` returns `*this` if `level <= threshold_`, otherwise returns the `nop_`. All call sites change from `(*log) <<` to `log->at(LEVEL) <<`. The `matrix::render()` call is gated by passing `&log->at(TRACE)`. `Board::print()` changes its internal `(*log)` calls to `log->at(DEBUG)`. This is the highest-effort suggestion but makes every other improvement composable.
 
 ---
 
@@ -252,7 +295,8 @@ Add `setLevel(LogLevel)` and `shouldLog(LogLevel) const` to the `logger` base cl
 | 6 | Game-level header and footer | Low | Medium | ✓ Done |
 | 7 | Fix -0 display artifacts | Trivial | Medium | ✓ Done |
 | 8 | Suppress variable ID table | Low | Low | ✓ Done |
+| 10 | Improve Monte Carlo logging | Low | High | ✓ Done |
 | 3 | Labelled matrix rows and columns | High | Medium | Pending |
-| 9 | Verbosity levels | High | Medium | Pending |
+| 9 | Verbosity levels | High | Medium | ✓ Done |
 
-Suggestions 3 and 9 remain. Suggestion 3 requires passing coordinate metadata alongside the matrix. Suggestion 9 (verbosity levels) is the hardest but would make the existing log output manageable for bulk runs.
+Only suggestion 3 remains. It requires passing coordinate metadata alongside the matrix build loop so that each row can be labelled with the board square that generated it.
