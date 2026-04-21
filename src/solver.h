@@ -13,6 +13,7 @@ class solver
 
    private:
       GuessingStrategy strategy;
+      int turnCount;
 };
 
 #endif

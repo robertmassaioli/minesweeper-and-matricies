@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <memory>
+#include <string>
 #include <vector>
 #include <fstream>
 
@@ -101,16 +102,44 @@ int main(int argc, char** argv)
    return EXIT_SUCCESS;
 }
 
+static const char* strategyName(GuessingStrategy s)
+{
+   switch (s)
+   {
+      case GuessingStrategy::MONTE_CARLO: return "MONTE_CARLO";
+      case GuessingStrategy::NONE:        return "NONE";
+      default:                            return "UNKNOWN";
+   }
+}
+
+static const char* gameStateName(GameState s)
+{
+   switch (s)
+   {
+      case WON:      return "WON";
+      case LOST:     return "LOST";
+      case PROGRESS: return "STALLED";
+      default:       return "UNKNOWN";
+   }
+}
+
 static GameState solveRandomGame(Dimensions& dim, int mineCount,
                                   GuessingStrategy strategy, logger* log)
 {
+   (*log) << std::string(60, '=') << logger::endl;
+   (*log) << " GAME START" << logger::endl;
+   (*log) << " Board: " << dim.getWidth() << " x " << dim.getHeight()
+          << ",  mines: " << mineCount
+          << ",  strategy: " << strategyName(strategy) << logger::endl;
+   (*log) << std::string(60, '=') << logger::endl;
+
    Game game(dim, mineCount, log);
    solver turnSolver(strategy);
 
    // Make the initial move
    // TODO make this a random move
    {
-      Move move(Position(rand() % dim.getWidth(), rand() % dim.getHeight()), NORMAL); 
+      Move move(Position(rand() % dim.getWidth(), rand() % dim.getHeight()), NORMAL);
       game.acceptMove(move);
    }
 
@@ -137,7 +166,12 @@ static GameState solveRandomGame(Dimensions& dim, int mineCount,
    (*log) << logger::endl;
    game.print();
 
-   return game.getState();
+   GameState finalState = game.getState();
+   (*log) << std::string(60, '=') << logger::endl;
+   (*log) << " GAME END: " << gameStateName(finalState) << logger::endl;
+   (*log) << std::string(60, '=') << logger::endl;
+
+   return finalState;
 }
 
 static void printResults(logger* log, results& res)

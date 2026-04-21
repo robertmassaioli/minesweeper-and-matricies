@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <optional>
+#include <string>
 #include <vector>
 
 static const double EPSILON = 1e-9;
@@ -24,14 +25,27 @@ static int adjMap[8][2] = {
    {-1,0}
 };
 
-solver::solver(GuessingStrategy strat) : strategy(strat) {}
+solver::solver(GuessingStrategy strat) : strategy(strat), turnCount(0) {}
 
 std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
 {
+   ++turnCount;
+   (*log) << std::string(60, '=') << logger::endl;
+   (*log) << " SOLVER TURN " << turnCount << logger::endl;
+   (*log) << std::string(60, '=') << logger::endl;
+
    Square* grid = board->getGrid();
 
    // 1 List number squares that touch non-clicked squares
    Dimensions gridDim = board->getDimensions();
+   const int boardWidth = gridDim.getWidth();
+
+   // coordStr: flat board index → "(col,row)" string
+   auto coordStr = [boardWidth](int flatPos) -> std::string {
+      return "(" + std::to_string(flatPos % boardWidth) + ","
+                 + std::to_string(flatPos / boardWidth) + ")";
+   };
+
    std::vector<Position> nonCompletedPositions;
    for(int row = 0; row < gridDim.getHeight(); ++row)
    {
@@ -102,13 +116,10 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
       return nullptr;
    }
 
-   // print out every element in the id map
-   (*log) << "Id: Position" << logger::endl;
-   for(int id = 0; id < currentSquareId; ++id)
-   {
-      (*log) << id << ": " << idToPosition[id] << logger::endl;
-   }
-   (*log) << logger::endl;
+   // varStr: variable id → "id=N pos=(col,row)" string
+   auto varStr = [&](int id) -> std::string {
+      return "id=" + std::to_string(id) + " pos=" + coordStr(idToPosition[id]);
+   };
 
    // 3 Build the constraint matrix.
    // Each revealed number square contributes one row: sum(unknown_neighbours) = number - flagged_neighbours.
@@ -192,7 +203,7 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
    {
       // Find the pivot: the first non-zero coefficient in this row. In RREF each pivot column
       // has been normalised to 1; if column `row` is zero a free variable shifted the pivot right.
-      bool failedToFindValue = false;
+      bool hasUnresolvedVars = false;
       matrix<double>::height_size_type pivot = row;
       double pivotVal = solMat.getValue(row, pivot);
       double val = solMat.getValue(row, maxVariableColumn);
@@ -208,7 +219,8 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
          {
             pivot = col;
             pivotVal = currentValue;
-            (*log) << "Pivot updated to: " << pivot << " => " << currentValue << logger::endl;
+            (*log) << "[RREF] Row " << row << ": pivot at " << varStr(pivot)
+                   << ", coefficient=" << currentValue << logger::endl;
          }
 
          if(fabs(currentValue) > EPSILON)
@@ -222,16 +234,20 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
             else
             {
                // At least one variable in this row is still unknown; direct solve is impossible.
-               failedToFindValue = true;
+               hasUnresolvedVars = true;
             }
          }
       }
-      (*log) << "value: " << val << " (" << (failedToFindValue ? "true" : "false") << ")" << logger::endl;
+      if(hasUnresolvedVars)
+      {
+         (*log) << "[RREF] Row " << row << ": has unresolved variables, trying min/max lemma"
+                << logger::endl;
+      }
       solMat.setValue(row, maxVariableColumn, val);
 
       if(fabs(pivotVal) > EPSILON)
       {
-         if(failedToFindValue)
+         if(hasUnresolvedVars)
          {
             // Direct solve failed. Try the min/max lemma instead.
             // Compute the minimum and maximum possible values for the LHS given that each
@@ -255,11 +271,14 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
                   double currentValue = solMat.getValue(row, col);
                   if(currentValue > EPSILON)
                   {
-                     (*log) << "Col " << col << " is not a mine." << logger::endl;
+                     (*log) << "[Deduced] " << varStr(col) << ": SAFE (min/max lemma)"
+                            << logger::endl;
                      results[col] = std::optional<bool>(false);
                   }
                   if(currentValue < -EPSILON)
                   {
+                     (*log) << "[Deduced] " << varStr(col) << ": MINE (min/max lemma)"
+                            << logger::endl;
                      results[col] = std::optional<bool>(true);
                   }
                }
@@ -273,11 +292,14 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
                   double currentValue = solMat.getValue(row, col);
                   if(currentValue > EPSILON)
                   {
-                     (*log) << "Col " << col << " is a mine." << logger::endl;
+                     (*log) << "[Deduced] " << varStr(col) << ": MINE (min/max lemma)"
+                            << logger::endl;
                      results[col] = std::optional<bool>(true);
                   }
                   if(currentValue < -EPSILON)
                   {
+                     (*log) << "[Deduced] " << varStr(col) << ": SAFE (min/max lemma)"
+                            << logger::endl;
                      results[col] = std::optional<bool>(false);
                   }
                }
@@ -292,49 +314,56 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
             // indicator, val must be 0 (safe) or 1 (mine) on any valid board.
             if(results[pivot].has_value())
             {
-               (*log) << "Already found pivot for: " << pivot << logger::endl;
+               (*log) << "[RREF] " << varStr(pivot) << " already resolved, skipping"
+                      << logger::endl;
             }
             else
             {
-               (*log) << "Found standard result: " << pivot << " => " << val << logger::endl;
                if(fabs(val) < EPSILON || fabs(val - 1.0) < EPSILON)
                {
-                  results[pivot] = optional<bool>(fabs(val - 1.0) < EPSILON);
+                  bool isMine = fabs(val - 1.0) < EPSILON;
+                  (*log) << "[Deduced] " << varStr(pivot) << ": "
+                         << (isMine ? "MINE" : "SAFE") << " (direct solve, val="
+                         << val << ")" << logger::endl;
+                  results[pivot] = optional<bool>(isMine);
                }
                else
                {
-                  (*log) << "Found pivot value is not 0 or 1 ... what do we do?" << logger::endl;
+                  (*log) << "[WARN] " << varStr(pivot)
+                         << " direct-solve value=" << val
+                         << " is not 0 or 1 (numerical error?)" << logger::endl;
                }
             }
          }
       }
       else
       {
-         (*log) << "There in now pivot in row: " << row << logger::endl;
+         (*log) << "[RREF] Row " << row << " has no pivot (all-zero row)" << logger::endl;
       }
    }
 
    // print out results
    auto moves = std::make_unique<std::vector<Move>>();
+   (*log) << logger::endl << "Results:" << logger::endl;
    for(matrix<double>::width_size_type i = 0; i < matrixWidth - 1; ++i)
    {
-      (*log) << i << ": ";
+      (*log) << "  [Result] " << varStr(i) << ": ";
       if(results[i].has_value())
       {
          if(results[i].value())
          {
-            (*log) << "mine";
+            (*log) << "MINE";
             moves->push_back(Move(board->posLoc(idToPosition[(int) i]), FLAG));
          }
          else
          {
-            (*log) << "not mine";
+            (*log) << "SAFE";
             moves->push_back(Move(board->posLoc(idToPosition[(int) i]), NORMAL));
          }
       }
       else
       {
-         (*log) << "NA";
+         (*log) << "UNDECIDED";
       }
       (*log) << logger::endl;
    }
@@ -463,6 +492,20 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
                Move(board->posLoc(idToPosition[bestVar]), NORMAL));
          }
       }
+   }
+
+   // Turn summary
+   {
+      int mineCount = 0, safeCount = 0;
+      for (Move m : *moves)
+         m.getClickType() == FLAG ? ++mineCount : ++safeCount;
+      (*log) << logger::endl;
+      (*log) << std::string(60, '-') << logger::endl;
+      (*log) << " Turn " << turnCount << " summary: "
+             << mineCount << " mine(s) flagged, "
+             << safeCount << " safe square(s) clicked, "
+             << (mineCount + safeCount) << " total move(s)" << logger::endl;
+      (*log) << std::string(60, '-') << logger::endl;
    }
 
    return moves;

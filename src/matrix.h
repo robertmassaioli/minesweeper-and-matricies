@@ -8,6 +8,7 @@
 
 #include "logging.h"
 #include "vector.h"
+#include <cmath>
 #include <memory>
 
 template<class A>
@@ -335,10 +336,10 @@ class matrix
             for(width_size_type col = 0; col < getWidth(); ++col)
             {
                A value = getValue(row, col);
-               if(value == 0.0)
+               if(std::fabs(static_cast<double>(value)) < 1e-9)
                {
                   (*log) << "0 ";
-               } 
+               }
                else
                {
                   (*log) << value << ' ';

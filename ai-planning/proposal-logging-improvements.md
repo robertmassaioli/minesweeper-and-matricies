@@ -1,6 +1,6 @@
 # Proposal: Logging Output Improvements
 
-**Status:** Draft  
+**Status:** Partially implemented (suggestions 1, 2, 4, 5, 6, 7, 8 done; 3 and 9 pending)  
 **Author:** Claude Code  
 **Date:** 2026-04-20
 
@@ -10,7 +10,7 @@ The current log format (observable in `game.out`) is technically complete but pr
 
 ---
 
-## Suggestion 1: Per-Turn Section Headers
+## Suggestion 1: Per-Turn Section Headers ✓ IMPLEMENTED
 
 ### Problem
 Consecutive solver turns run together with no visual separation. Turn 2 begins immediately after turn 1's output ends, making it impossible to tell where one turn's reasoning stops and the next begins, especially when the matrix dumps are long.
@@ -45,7 +45,7 @@ Add a turn counter to the solver loop in `solver.cpp` / `main.cpp`. Print a head
 
 ---
 
-## Suggestion 2: Translate Variable IDs to Board Coordinates
+## Suggestion 2: Translate Variable IDs to Board Coordinates ✓ IMPLEMENTED
 
 ### Problem
 Variable IDs are printed as flat indices or sequential integers (e.g. `"0: 179"`, `"Col 8 is a mine"`). The position `179` in a 16×16 board is column 11, row 11. There is no way to connect a variable ID to a cell on the board without mental arithmetic and knowledge of the encoding.
@@ -76,7 +76,7 @@ The `positionToId` reverse map already exists in the solver. Add a helper to for
 
 ---
 
-## Suggestion 3: Label Matrix Rows and Columns
+## Suggestion 3: Label Matrix Rows and Columns (PENDING)
 
 ### Problem
 The matrix is printed as a wall of numbers with no row or column labels. Rows represent constraints from numbered board squares, but nothing in the output says which cell each row came from. Columns represent unknown squares, but their IDs are not printed above the matrix.
@@ -104,7 +104,7 @@ Requires passing coordinate metadata alongside the matrix. One approach: a `std:
 
 ---
 
-## Suggestion 4: Replace Cryptic Pivot/Value Messages with Human-Readable Deductions
+## Suggestion 4: Replace Cryptic Pivot/Value Messages with Human-Readable Deductions ✓ IMPLEMENTED
 
 ### Problem
 The current log contains messages like:
@@ -134,7 +134,7 @@ In `matrix.cpp` and `solver.cpp`, replace raw index prints with formatted coordi
 
 ---
 
-## Suggestion 5: Per-Turn Move Summary
+## Suggestion 5: Per-Turn Move Summary ✓ IMPLEMENTED
 
 ### Problem
 After all the matrix output, the log does not contain a clear summary of what the solver decided to do this turn. Moves are implied by the "Col N is a mine" / "N: mine" messages, but these are interleaved with debug output and easy to miss. There is no listing of all moves applied in a single turn.
@@ -153,7 +153,7 @@ Collect the returned `vector<Move>` before applying it in `main.cpp` (it is alre
 
 ---
 
-## Suggestion 6: Game-Level Header and Footer
+## Suggestion 6: Game-Level Header and Footer ✓ IMPLEMENTED
 
 ### Problem
 The log has no preamble explaining the game configuration. If you open `game.out` cold you do not know the board dimensions, mine count, random seed, or guessing strategy used.
@@ -179,7 +179,7 @@ Print the header after `srand` in `solveRandomGame`. Print the footer with the `
 
 ---
 
-## Suggestion 7: Fix "-0" Display Artifacts
+## Suggestion 7: Fix "-0" Display Artifacts ✓ IMPLEMENTED
 
 ### Problem
 Floating-point negation of zero prints as `-0` in the matrix dump:
@@ -199,7 +199,7 @@ Alternatively, use `std::setprecision` with `std::fixed` so `-0.00` is obviously
 
 ---
 
-## Suggestion 8: Suppress or Condense the Variable ID Table
+## Suggestion 8: Suppress or Condense the Variable ID Table ✓ IMPLEMENTED (suppressed)
 
 ### Problem
 The variable ID table is printed at full length every turn:
@@ -219,7 +219,7 @@ On turn 2 with 41 variables, this is 41 lines before any meaningful output. Comb
 
 ---
 
-## Suggestion 9: Verbosity Levels
+## Suggestion 9: Verbosity Levels (PENDING)
 
 ### Problem
 All of the above improvements still produce a long log for a single game. For bulk runs (100k games) the log is either completely suppressed (`nop_logger`) or overwhelmingly verbose. There is no middle ground.
@@ -243,16 +243,16 @@ Add `setLevel(LogLevel)` and `shouldLog(LogLevel) const` to the `logger` base cl
 
 ## Priority Order
 
-| # | Suggestion | Effort | Impact |
-|---|---|---|---|
-| 1 | Per-turn section headers | Low | High |
-| 2 | Variable IDs → board coordinates | Medium | High |
-| 5 | Per-turn move summary | Low | High |
-| 6 | Game-level header and footer | Low | Medium |
-| 7 | Fix -0 display artifacts | Trivial | Medium |
-| 4 | Human-readable deductions | Medium | High |
-| 3 | Labelled matrix rows and columns | High | Medium |
-| 8 | Suppress variable ID table | Low | Low |
-| 9 | Verbosity levels | High | Medium |
+| # | Suggestion | Effort | Impact | Status |
+|---|---|---|---|---|
+| 1 | Per-turn section headers | Low | High | ✓ Done |
+| 2 | Variable IDs → board coordinates | Medium | High | ✓ Done |
+| 4 | Human-readable deductions | Medium | High | ✓ Done |
+| 5 | Per-turn move summary | Low | High | ✓ Done |
+| 6 | Game-level header and footer | Low | Medium | ✓ Done |
+| 7 | Fix -0 display artifacts | Trivial | Medium | ✓ Done |
+| 8 | Suppress variable ID table | Low | Low | ✓ Done |
+| 3 | Labelled matrix rows and columns | High | Medium | Pending |
+| 9 | Verbosity levels | High | Medium | Pending |
 
-Suggestions 1, 5, 6, and 7 are quick wins requiring minimal refactoring. Suggestion 2 (coordinate translation) unlocks the readability of suggestions 3 and 4, so it is the highest-leverage single change. Suggestion 9 (verbosity levels) is the hardest but makes the others composable.
+Suggestions 3 and 9 remain. Suggestion 3 requires passing coordinate metadata alongside the matrix. Suggestion 9 (verbosity levels) is the hardest but would make the existing log output manageable for bulk runs.
