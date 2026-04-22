@@ -408,12 +408,13 @@ std::unique_ptr<std::vector<Move>> solver::getMoves(Board* board, logger* log)
          for (int c = 0; c <= snap.numVars; ++c)
             snap.data[r * (snap.numVars + 1) + c] = solMat.getValue(r, c);
 
-      // Enable global mine count enforcement only when the constrained frontier
-      // covers most of the remaining unknowns (unconstrained region is small or
-      // empty), so the constraint is useful rather than just a rejection filter.
+      // Enforce the global mine count only when there are no unconstrained
+      // squares. If any unconstrained squares exist, the remaining mines could
+      // be distributed between the constrained and unconstrained regions in
+      // any proportion, so enforcing an exact count on the constrained region
+      // alone would incorrectly reject valid assignments.
       SamplingConfig cfg;
-      cfg.enforceGlobalCount  = (unconstrainedPositions.empty() ||
-                                  remainingMines <= snap.numVars);
+      cfg.enforceGlobalCount  = unconstrainedPositions.empty();
       cfg.totalRemainingMines = remainingMines;
 
       SamplingResult sr = runMonteCarlo(snap,
