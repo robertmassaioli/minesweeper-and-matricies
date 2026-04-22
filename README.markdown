@@ -5,9 +5,10 @@
 Welcome to my code that demonstrates that you can solve all of the known parts of
 Minesweeper by using Matricies and some special properties that you can derive from them.
 Please note, in advance, that there will be certain situations where it is impossible to
-tell for sure which squares are Mines and which are not. This solver will not make a move
-if there are no sure moves that it can make; I do not attempt to do any probabalistic
-analysis (yet).
+tell for sure which squares are Mines and which are not. When no certain move exists the
+solver falls back to a Monte Carlo sampler that estimates mine probabilities from the
+constraint matrix and clicks the least dangerous square. Use `--strategy none` to disable
+guessing and record stalled games as PROGRESS instead.
 
 If you want the explicit details on how it works then you should [read my blog post on the
 subject][1].
@@ -55,6 +56,16 @@ Run the solver with default settings (Intermediate difficulty, 100,000 games):
                         Sets width, height, and mines. Individual flags override.
       --seed N          Fix the initial RNG seed for reproducible runs (default: time-based)
       --log FILE        Write per-game trace to FILE
+      --log-level LVL   Verbosity of the log file (default: debug)
+                        error  -- [WARN] messages and solver failures only
+                        warn   -- same as error plus explicit warnings
+                        info   -- game header/footer and per-turn move summaries
+                        debug  -- adds turn headers, deductions, results, board prints
+                        trace  -- adds full matrix dumps and MC probability table
+      --strategy NAME   Guessing strategy when no certain move exists (default: monte-carlo)
+                        none          -- never guess; record stalled games as PROGRESS
+                        monte-carlo   -- estimate mine probabilities via constraint-matrix
+                                        sampling and click the least dangerous square
       --help            Print this message and exit
 
     Presets:
@@ -75,6 +86,14 @@ Run Expert with a fixed seed so results are reproducible:
 Custom board with a per-game trace written to a file:
 
     ./src/mnm --width 9 --height 9 --mines 10 --runs 500 --log trace.txt
+
+Write a detailed trace including matrix dumps and MC probability tables:
+
+    ./src/mnm --preset beginner --runs 1 --seed 42 --log trace.txt --log-level trace
+
+Run without the Monte Carlo guesser (deterministic only):
+
+    ./src/mnm --strategy none
 
 ## Running the Tests
 
