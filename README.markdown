@@ -15,19 +15,7 @@ subject][1].
 
 ## License
 
-I have written all of this code myself and therefore it is mine to license as I wish. The
-only part of the code that can be considered copied is the gaussian elimination algorithm
-which I read on Wikipedia and then wrote myself.
-
-Here is the short version: you can use the following code however you like, I will not
-support it or be responsible for it but please give me attribution if you do use it. I
-love attribution and all I really want is for people to go around saying:
-
-> Hey, did you know that you can solve Minesweeper using Matricies? Yeah, this person called 
-> Robert Massaioli came up with that and wrote this cool example program on the internet.
-
-That is all I want. But for practical purposes you should consider this code to be
-licensed under the MIT license.
+MIT. See `LICENSE` file.
 
 ## Compilation
 
