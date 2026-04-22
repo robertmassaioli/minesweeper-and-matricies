@@ -10,8 +10,7 @@ solver falls back to a Monte Carlo sampler that estimates mine probabilities fro
 constraint matrix and clicks the least dangerous square. Use `--strategy none` to disable
 guessing and record stalled games as PROGRESS instead.
 
-If you want the explicit details on how it works then you should [read my blog post on the
-subject][1].
+If you want the explicit details on how it works then you should [read the full write-up](SOLVING-MINESWEEPER.md).
 
 ## License
 
@@ -105,5 +104,4 @@ What, really? You actually want to install this code on your machine, well I'm c
 You can use the standard cmake tools to install it but, honestly, it will probably just
 clutter up your bin directory.
 
- [1]: http://robertmassaioli.wordpress.com/2013/01/12/solving-minesweeper-with-matricies/
  [2]: http://www.cmake.org/
