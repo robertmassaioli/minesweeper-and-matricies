@@ -94,6 +94,7 @@ int main(int argc, char** argv)
       }
    }
    cout << "Processed " << testRuns << std::endl;
+   cout << std::endl;
 
    {
       auto tempLogger = std::make_unique<ostream_logger>(std::cout);
@@ -178,19 +179,20 @@ static GameState solveRandomGame(Dimensions& dim, int mineCount,
 
 static void printResults(logger* log, results& res)
 {
-   double winPercentage = ((double) (res.winCount * 100)) / ((double) res.total);
-   double progressPercentage = ((double) (res.progressCount * 100)) / ((double) res.total);
-   (*log) << "WINs: " << res.winCount << " (" << winPercentage << "%)" << logger::endl;
-   (*log) << "PROGRESSes " << res.progressCount << " (" << progressPercentage << "%)" << logger::endl;
-   (*log) << "ERRORS (losses) " << res.loseCount << logger::endl;
+   double winPercentage      = (res.winCount      * 100.0) / res.total;
+   double lossPercentage     = (res.loseCount     * 100.0) / res.total;
+   double progressPercentage = (res.progressCount * 100.0) / res.total;
 
    if(!res.losses.empty())
    {
-      // Print out losses
-      (*log) << "Seeds for losses: " << logger::endl;
+      (*log) << "Seeds for losses:" << logger::endl;
       for(unsigned int seed : res.losses)
-      {
-         (*log) << " " << seed << logger::endl;
-      }
+         (*log) << "  " << seed << logger::endl;
+      (*log) << logger::endl;
    }
+
+   (*log) << "WINs:      " << res.winCount      << " (" << winPercentage      << "%)" << logger::endl;
+   (*log) << "LOSSes:    " << res.loseCount      << " (" << lossPercentage     << "%)" << logger::endl;
+   (*log) << "STALLed:   " << res.progressCount  << " (" << progressPercentage << "%)" << logger::endl;
+   (*log) << "Total:     " << res.total << logger::endl;
 }
