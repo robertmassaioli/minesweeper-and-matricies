@@ -19,6 +19,7 @@ struct Config
     unsigned        seed      = 0;       // 0 means "use time(NULL)"
     bool            fixedSeed = false;
     std::string     logFile;             // empty means no log file
+    std::string     boardFile;           // empty means random generation
     GuessingStrategy strategy = GuessingStrategy::MONTE_CARLO;
     LogLevel         logLevel = LogLevel::DEBUG;
 };
