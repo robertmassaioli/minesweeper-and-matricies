@@ -39,22 +39,24 @@ When approaching a new problem, starting with a simple example helps conceptuali
 
 ### A Simple Example
 
-Consider a small Minesweeper configuration with five unclicked squares — the "unknowns." Each square either contains a mine or doesn't. These unknowns become variables x₁ through x₅.
+Consider the following Minesweeper configuration with five unclicked squares — the "unknowns" — in the top row, and five revealed numbered squares directly below:
+
+```
+#####
+12221
+```
+
+Each unclicked square either contains a mine or doesn't. These unknowns become variables x₁ through x₅, reading left to right.
 
 For each unclicked square xᵢ: if it contains a mine, its value equals 1; if not, it equals 0.
 
-Looking at the top-right numbered square (containing 1), it is adjacent to exactly one mine. The adjacent unclicked squares are x₁ and x₂, so:
+Each numbered square contributes one equation. A numbered square at the left edge sees x₁ and x₂ only; the three middle squares each see three adjacent unknowns; the right edge sees x₄ and x₅ only:
 
 ```
 x₁ + x₂ = 1
-```
-
-Similar equations derive from the other numbered squares:
-
-```
-x₂ + x₃ = 1
+x₁ + x₂ + x₃ = 2
 x₂ + x₃ + x₄ = 2
-x₃ + x₄ + x₅ = 1
+x₃ + x₄ + x₅ = 2
 x₄ + x₅ = 1
 ```
 
@@ -62,9 +64,9 @@ Writing with explicit coefficients:
 
 ```
 1x₁ + 1x₂ + 0x₃ + 0x₄ + 0x₅ = 1
-0x₁ + 1x₂ + 1x₃ + 0x₄ + 0x₅ = 1
+1x₁ + 1x₂ + 1x₃ + 0x₄ + 0x₅ = 2
 0x₁ + 1x₂ + 1x₃ + 1x₄ + 0x₅ = 2
-0x₁ + 0x₂ + 1x₃ + 1x₄ + 1x₅ = 1
+0x₁ + 0x₂ + 1x₃ + 1x₄ + 1x₅ = 2
 0x₁ + 0x₂ + 0x₃ + 1x₄ + 1x₅ = 1
 ```
 
@@ -72,25 +74,25 @@ The augmented matrix:
 
 ```
 [ 1 1 0 0 0 | 1 ]
-[ 0 1 1 0 0 | 1 ]
+[ 1 1 1 0 0 | 2 ]
 [ 0 1 1 1 0 | 2 ]
-[ 0 0 1 1 1 | 1 ]
+[ 0 0 1 1 1 | 2 ]
 [ 0 0 0 1 1 | 1 ]
 ```
 
-After Gaussian elimination:
+After Gaussian elimination (full reduced row echelon form):
 
 ```
-[ 1 1 0 0 0 | 1 ]
-[ 0 1 1 0 0 | 1 ]
-[ 0 0 0 1 0 | 1 ]
-[ 0 0 1 0 1 | 0 ]
-[ 0 0 0 0 0 | 0 ]
+[ 1 0 0 0  1 | 1 ]
+[ 0 1 0 0 -1 | 0 ]
+[ 0 0 1 0  0 | 1 ]
+[ 0 0 0 1  1 | 1 ]
+[ 0 0 0 0  0 | 0 ]
 ```
 
-At first glance there is no unique solution. However, in boolean systems where each value equals either 0 or 1, this incomplete elimination still provides useful information.
+Row three has a single non-zero variable coefficient: x₃ = 1. Therefore x₃ is a mine. The remaining rows each contain two unknowns and no row meets its min/max bound, so no further deductions are possible from this position alone.
 
-Looking at row three: x₄ is the only non-zero coefficient column, equalling 1. Therefore x₄ = 1 — x₄ is a mine. Gaussian elimination simplified the matrix and enabled a partial solution even without a complete answer.
+Gaussian elimination simplified the matrix and enabled a partial solution even without a complete answer. The game continues with x₃ flagged as a mine, but the remaining four squares require probabilistic reasoning to resolve.
 
 ---
 
