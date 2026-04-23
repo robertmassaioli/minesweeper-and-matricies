@@ -89,7 +89,7 @@ the worked RREF as the primary illustration. Then show the non-firing cases from
 
 ---
 
-## 4. Negative Coefficients Appear in the RREF Without Explanation
+## 4. ~~Negative Coefficients Appear in the RREF Without Explanation~~ ✓ Resolved
 
 **What the document shows:**
 
@@ -106,9 +106,11 @@ column *j* — is obvious to someone who has done the arithmetic, but non-obviou
 target reader. A single sentence noting that RREF subtraction produces negatives would
 prevent confusion.
 
+**Fix applied:** Added a sentence immediately before the RREF interpretation noting that row subtraction during elimination can produce negative coefficients even though all initial entries are 0 or 1.
+
 ---
 
-## 5. The Special Rule Precondition (Substitute Known Values First) Is Absent
+## 5. ~~The Special Rule Precondition (Substitute Known Values First) Is Absent~~ ✓ Resolved
 
 **What the document implies:**
 
@@ -125,9 +127,11 @@ subtracted from the RHS at matrix build time), but the document says nothing abo
 
 This is one of the most common implementation mistakes for this kind of solver.
 
+**Fix applied:** Added an "Important precondition" paragraph after the special rule algorithm explaining that resolved variables must be substituted into the RHS before reapplying the rule, and noting how the implementation handles this automatically.
+
 ---
 
-## 6. The Robust Algorithm's Step 5 Describes REF, Not RREF
+## 6. ~~The Robust Algorithm's Step 5 Describes REF, Not RREF~~ ✓ Resolved
 
 Step 5 reads:
 
@@ -140,9 +144,11 @@ eliminated each pivot variable from all other rows, so there is no back-substitu
 and no need to process rows in a particular order. Each row is checked independently
 for a direct-value read-off (single non-zero coefficient) or a min/max bound hit.
 
+**Fix applied:** Step 5 now reads: "Extract partial or full solutions by applying the special min/max rule independently to each row: a row with a single non-zero coefficient yields a direct value read-off; a row whose RHS equals its upper or lower bound fully determines all variables in that row. No particular row ordering is required."
+
 ---
 
-## 7. The First-Click Problem Is Ignored
+## 7. ~~The First-Click Problem Is Ignored~~ ✓ Resolved
 
 The algorithm begins "identify numbered squares adjacent to at least one
 unclicked/unflagged square." On a freshly generated board before any click, there are
@@ -153,9 +159,11 @@ The implementation defers mine placement until after the first move, guaranteein
 first click opens a safe region. The document makes no mention of this, leaving a gap
 between the algorithm description and a reader who tries to implement it from scratch.
 
+**Fix applied:** Added a note block before the algorithm steps explaining that mine placement is deferred until after the first click and that the loop should begin only after that initial move.
+
 ---
 
-## 8. The Monte Carlo Fallback Is Absent from the Algorithm Steps
+## 8. ~~The Monte Carlo Fallback Is Absent from the Algorithm Steps~~ ✓ Resolved
 
 The seven-step algorithm ends with "loop until no certain moves remain or the game
 ends." In practice, the solver also loops when the Monte Carlo guesser fires — it does
@@ -163,9 +171,11 @@ not simply stop when deterministic moves run out. The Design section mentions Mo
 Carlo, but the algorithm steps do not, so a reader following the steps would implement
 a solver that stalls instead of guessing.
 
+**Fix applied:** Step 7 now continues: "When no certain moves remain and the game is not over, fall back to a probabilistic guesser (e.g. Monte Carlo sampling) to select the next click, then resume the loop."
+
 ---
 
-## 9. The Flagged-Neighbour Subtraction in Step 3 Is Understated
+## 9. ~~The Flagged-Neighbour Subtraction in Step 3 Is Understated~~ ✓ Resolved
 
 Step 3 says "subtract already-flagged neighbours from the RHS." This is correct but
 terse. Flagged squares represent confirmed mines (value=1); failing to subtract them
@@ -174,21 +184,23 @@ the correct interpretation of the constraint, but a reader unfamiliar with const
 solvers will not recognise why this step is necessary or what goes wrong if it is
 omitted.
 
+**Fix applied:** Step 3 now reads: "Build one matrix row per numbered square: set coefficients to 1 for each adjacent unknown, 0 elsewhere, and subtract the count of already-flagged neighbours from the RHS. This subtraction is necessary because flagged squares are confirmed mines (value 1); omitting it would overstate the remaining mine count and corrupt every deduction made from that row."
+
 ---
 
 ## Summary
 
-| # | Issue | Severity |
-|---|---|---|
-| 1 | "Gaussian elimination" still used; step 5 still mentions back-substitution | Medium |
-| 2 | Underdetermined rows not shown with bound calculations; two valid configurations not stated | Medium |
-| 3 | Special rule section not connected to worked example | Medium |
-| 4 | Negative coefficients in RREF appear without explanation | Low |
-| 5 | Special rule precondition (substitute knowns first) still absent | Medium |
-| 6 | Step 5 describes REF procedure, not RREF | Medium |
-| 7 | First-click problem still ignored | Low |
-| 8 | Monte Carlo fallback absent from algorithm steps | Low |
-| 9 | Flagged-neighbour subtraction deserves more explanation | Low |
+| # | Issue | Severity | Status |
+|---|---|---|---|
+| 1 | "Gaussian elimination" still used; step 5 still mentions back-substitution | Medium | Open |
+| 2 | Underdetermined rows not shown with bound calculations; two valid configurations not stated | Medium | Open |
+| 3 | Special rule section not connected to worked example | Medium | Open |
+| 4 | Negative coefficients in RREF appear without explanation | Low | **Resolved** |
+| 5 | Special rule precondition (substitute knowns first) still absent | Medium | **Resolved** |
+| 6 | Step 5 describes REF procedure, not RREF | Medium | **Resolved** |
+| 7 | First-click problem still ignored | Low | **Resolved** |
+| 8 | Monte Carlo fallback absent from algorithm steps | Low | **Resolved** |
+| 9 | Flagged-neighbour subtraction deserves more explanation | Low | **Resolved** |
 
 ---
 

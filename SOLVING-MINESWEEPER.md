@@ -90,6 +90,8 @@ After Gaussian elimination (full reduced row echelon form):
 [ 0 0 0 0  0 | 0 ]
 ```
 
+Note that row subtraction during elimination can produce negative coefficients even though every initial entry is 0 or 1; this is expected and does not affect the validity of the result.
+
 Row three has a single non-zero variable coefficient: x₃ = 1. Therefore x₃ is a mine. The remaining rows each contain two unknowns and no row meets its min/max bound, so no further deductions are possible from this position alone.
 
 Gaussian elimination simplified the matrix and enabled a partial solution even without a complete answer. The game continues with x₃ flagged as a mine, but the remaining four squares require probabilistic reasoning to resolve.
@@ -119,19 +121,23 @@ The general rule: calculate the upper bound (sum of positive coefficients) and l
 3. If the augmented value equals the minimum: negative-coefficient variables are mines, positive-coefficient variables are not
 4. If the augmented value equals the maximum: positive-coefficient variables are mines, negative-coefficient variables are not
 
+**Important precondition:** This rule is only valid when every variable appearing in the row is still unknown. In subsequent solver turns, any variable already resolved (e.g. x₃ flagged as a mine in turn 1) must have its known value substituted into the RHS of every row that contains it before the rule is applied again. The implementation handles this automatically: flagged squares are excluded from the column index and their mine count is already subtracted from the RHS at matrix-build time.
+
 ---
 
 ### The Robust Algorithm
 
 Steps for the general algorithm:
 
+> **Note:** On a freshly generated board no numbered squares exist yet. Defer mine placement until after the first click so that move always opens a safe region. Begin the loop below only after this initial click.
+
 1. **Identify** numbered squares adjacent to at least one unclicked/unflagged square
 2. **Assign** unique matrix column indices to each unclicked neighbouring square
-3. **Build** one matrix row per numbered square: set coefficients to 1 for adjacent unknowns, 0 elsewhere, and subtract already-flagged neighbours from the RHS
-4. **Gaussian-eliminate** the matrix
-5. **Extract** partial or full solutions by applying back-substitution and the special min/max rule, processing from the bottom row up
+3. **Build** one matrix row per numbered square: set coefficients to 1 for each adjacent unknown, 0 elsewhere, and subtract the count of already-flagged neighbours from the RHS. This subtraction is necessary because flagged squares are confirmed mines (value 1); omitting it would overstate the remaining mine count and corrupt every deduction made from that row.
+4. **Gaussian-eliminate** the matrix to RREF
+5. **Extract** partial or full solutions by applying the special min/max rule independently to each row: a row with a single non-zero coefficient yields a direct value read-off; a row whose RHS equals its upper or lower bound fully determines all variables in that row. No particular row ordering is required.
 6. **Generate moves**: flag known mines, click known safe squares, leave undetermined squares alone
-7. **Loop** steps 1–6 until no certain moves remain or the game ends
+7. **Loop** steps 1–6 until no certain moves remain or the game ends. When no certain moves remain and the game is not over, fall back to a probabilistic guesser (e.g. Monte Carlo sampling) to select the next click, then resume the loop.
 
 ---
 
