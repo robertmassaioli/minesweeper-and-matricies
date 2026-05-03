@@ -22,6 +22,8 @@ Options:
                     info   -- game header/footer and per-turn move summaries
                     debug  -- adds turn headers, deductions, results, board prints
                     trace  -- adds full matrix dumps and MC probability table
+  --board-file PATH Load a board from a spec file instead of generating one randomly.
+                    Runs a single solve pass; --runs is ignored.
   --strategy NAME   Guessing strategy when no certain move exists (default: monte-carlo)
                     none          -- never guess; record stalled games as PROGRESS
                     monte-carlo   -- estimate mine probabilities via constraint-matrix
@@ -171,14 +173,18 @@ Config parseArgs(int argc, char** argv)
         {
             cfg.strategy = parseStrategy(nextToken(++i, argc, argv, flag));
         }
+        else if (flag == "--board-file")
+        {
+            cfg.boardFile = nextToken(++i, argc, argv, flag);
+        }
         else
         {
             usageError("unrecognised option: " + flag);
         }
     }
 
-    // Cross-field validation
-    if (cfg.mines >= cfg.width * cfg.height)
+    // Cross-field validation (not applicable when a board file is provided)
+    if (cfg.boardFile.empty() && cfg.mines >= cfg.width * cfg.height)
         usageError("--mines must be less than width * height (" +
                    std::to_string(cfg.width * cfg.height) + ")");
 

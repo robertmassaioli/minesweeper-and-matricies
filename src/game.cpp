@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "game.h"
+#include "boardspec.h"
 
 using namespace std;
 
@@ -25,10 +26,16 @@ static int map[8][2] = {
 };
 
 // Implementing the Game
-Game::Game(Dimensions dim, int mineCount, logger* log) 
+Game::Game(Dimensions dim, int mineCount, logger* log)
    : board(dim, mineCount, log), log(log)
 {
-   state = PROGRESS;  
+   state = PROGRESS;
+}
+
+Game::Game(const BoardSpec& spec, logger* log)
+   : board(spec, log), log(log)
+{
+   state = PROGRESS;
 }
 
 Game::~Game()
@@ -62,6 +69,57 @@ Board::Board(Dimensions dim, int mineCount, logger* log)
 {
    generated = false;
    mines = mineCount;
+}
+
+Board::Board(const BoardSpec& spec, logger* log)
+   : dim(spec.width, spec.height), log(log)
+{
+   int w = spec.width, h = spec.height;
+   int total = w * h;
+   grid = std::make_unique<Square[]>(total);
+
+   mines = 0;
+   int clickedCount = 0;
+
+   // First pass: mark mines and states
+   for (int i = 0; i < total; ++i)
+   {
+      grid[i].value = spec.mines[i] ? MINE : EMPTY;
+      grid[i].state = spec.states[i];
+
+      if (spec.mines[i])
+         ++mines;
+      if (spec.states[i] == CLICKED)
+         ++clickedCount;
+   }
+
+   // Second pass: compute neighbor-mine counts for all non-mine cells,
+   // matching what generateGrid does for a randomly-placed board.
+   for (int row = 0; row < h; ++row)
+   {
+      for (int col = 0; col < w; ++col)
+      {
+         int idx = row * w + col;
+         if (grid[idx].value == MINE)
+            continue;
+
+         int count = 0;
+         for (int d = 0; d < 8; ++d)
+         {
+            int nc = col + map[d][0];
+            int nr = row + map[d][1];
+            if (isValidPos(nc, nr))
+               count += (grid[nr * w + nc].value == MINE) ? 1 : 0;
+         }
+         grid[idx].value = count;
+      }
+   }
+
+   // squaresLeft mirrors how generateGrid initialises it: total cells minus
+   // already-clicked cells. The win condition (squaresLeft == mines) then fires
+   // once every non-mine cell has been clicked.
+   squaresLeft = total - clickedCount;
+   generated = true;
 }
 
 Board::~Board()

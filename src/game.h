@@ -5,6 +5,9 @@
 #include <cstdlib>
 #include <memory>
 
+// Forward-declare BoardSpec so game.h doesn't pull in boardspec.h
+struct BoardSpec;
+
 // In every board game square there should be a mine and they can be EMPTY, 1-8 or a MINE.
 #define NA -1
 #define EMPTY 0
@@ -94,6 +97,7 @@ class Board
 {
    public:
       Board(Dimensions dim, int mineCount, logger* log);
+      Board(const BoardSpec& spec, logger* log);
       ~Board();
 
       void print();
@@ -157,6 +161,7 @@ class Game
 {
    public:
       Game(Dimensions dim, int mineCount, logger* log);
+      Game(const BoardSpec& spec, logger* log);
       ~Game();
 
       void acceptMove(Move& m);

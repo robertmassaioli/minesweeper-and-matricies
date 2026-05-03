@@ -9,6 +9,7 @@
 #include "solver.h"
 #include "logging.h"
 #include "cli.h"
+#include "boardspec.h"
 
 using namespace std;
 
@@ -47,6 +48,9 @@ class results
 static void printResults(logger* log, results& res);
 static GameState solveRandomGame(Dimensions& dim, int mineCount,
                                   GuessingStrategy strategy, logger* log);
+static GameState solveSpecGame(const BoardSpec& spec, GuessingStrategy strategy, logger* log);
+static const char* gameStateName(GameState s);
+static const char* strategyName(GuessingStrategy s);
 
 int main(int argc, char** argv)
 {
@@ -65,6 +69,17 @@ int main(int argc, char** argv)
    else
    {
       log = std::make_unique<nop_logger>();
+   }
+
+   if (!cfg.boardFile.empty())
+   {
+      auto spec = loadBoardSpec(cfg.boardFile);
+      if (!spec)
+         return EXIT_FAILURE;
+
+      GameState result = solveSpecGame(*spec, cfg.strategy, log.get());
+      cout << "Result: " << gameStateName(result) << endl;
+      return EXIT_SUCCESS;
    }
 
    Dimensions dim(cfg.width, cfg.height);
@@ -158,6 +173,51 @@ static GameState solveRandomGame(Dimensions& dim, int mineCount,
       if(movesToPerform)
       {
          for(const Move& m : *movesToPerform)
+         {
+            Move currentMove = m;
+            game.acceptMove(currentMove);
+         }
+      }
+      game.print();
+   } while (game.getState() == PROGRESS && movesToPerform && !movesToPerform->empty());
+
+   log->at(LogLevel::DEBUG) << logger::endl;
+   game.print();
+
+   GameState finalState = game.getState();
+   log->at(LogLevel::INFO) << std::string(60, '=') << logger::endl;
+   log->at(LogLevel::INFO) << " GAME END: " << gameStateName(finalState) << logger::endl;
+   log->at(LogLevel::INFO) << std::string(60, '=') << logger::endl;
+
+   return finalState;
+}
+
+static GameState solveSpecGame(const BoardSpec& spec, GuessingStrategy strategy, logger* log)
+{
+   Dimensions dim(spec.width, spec.height);
+   int mineCount = 0;
+   for (bool m : spec.mines) mineCount += m ? 1 : 0;
+
+   log->at(LogLevel::INFO) << std::string(60, '=') << logger::endl;
+   log->at(LogLevel::INFO) << " GAME START (from file)" << logger::endl;
+   log->at(LogLevel::INFO) << " Board: " << dim.getWidth() << " x " << dim.getHeight()
+                           << ",  mines: " << mineCount
+                           << ",  strategy: " << strategyName(strategy) << logger::endl;
+   log->at(LogLevel::INFO) << std::string(60, '=') << logger::endl;
+
+   Game game(spec, log);
+   solver turnSolver(strategy);
+
+   game.print();
+
+   std::unique_ptr<std::vector<Move>> movesToPerform;
+   do
+   {
+      movesToPerform = turnSolver.getMoves(game.getBoard(), log);
+
+      if (movesToPerform)
+      {
+         for (const Move& m : *movesToPerform)
          {
             Move currentMove = m;
             game.acceptMove(currentMove);
